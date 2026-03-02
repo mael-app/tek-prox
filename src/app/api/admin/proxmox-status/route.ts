@@ -13,11 +13,7 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  try {
-    const client = getProxmoxClient();
-    await client.getNextVmid({ timeout: 5000 });
-    return NextResponse.json({ connected: true });
-  } catch {
-    return NextResponse.json({ connected: false });
-  }
+  const client = getProxmoxClient();
+  const { ok, reason } = await client.ping();
+  return NextResponse.json({ connected: ok, reason: reason ?? null });
 }

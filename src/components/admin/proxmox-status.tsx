@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
-type Status = "loading" | "connected" | "disconnected";
+type Status = "loading" | "connected" | "unreachable" | "node";
 
 export function ProxmoxStatusIndicator() {
   const [status, setStatus] = useState<Status>("loading");
@@ -14,13 +14,14 @@ export function ProxmoxStatusIndicator() {
     try {
       const res = await fetch("/api/admin/proxmox-status", { signal: controller.signal });
       if (!res.ok) {
-        setStatus("disconnected");
+        setStatus("unreachable");
         return;
       }
       const data = await res.json();
-      setStatus(data.connected ? "connected" : "disconnected");
+      if (data.connected) setStatus("connected");
+      else setStatus(data.reason === "node" ? "node" : "unreachable");
     } catch {
-      setStatus("disconnected");
+      setStatus("unreachable");
     } finally {
       clearTimeout(timer);
     }
@@ -34,14 +35,27 @@ export function ProxmoxStatusIndicator() {
 
   const isConnected = status === "connected";
   const isLoading = status === "loading";
+  const isError = status === "unreachable" || status === "node";
+
+  const label =
+    status === "loading" ? "Proxmox API…" :
+    status === "connected" ? "Proxmox API" :
+    status === "node" ? "Proxmox API" :
+    "Proxmox API";
+
+  const badge =
+    status === "loading" ? null :
+    status === "connected" ? "OK" :
+    status === "node" ? "Bad node" :
+    "Unreachable";
 
   return (
     <div
       className={cn(
         "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium",
         isLoading && "text-muted-foreground",
-        !isLoading && isConnected && "text-foreground",
-        !isLoading && !isConnected && "text-destructive"
+        isConnected && "text-foreground",
+        isError && "text-destructive"
       )}
     >
       {/* Heartbeat dot */}
@@ -50,32 +64,30 @@ export function ProxmoxStatusIndicator() {
           className={cn(
             "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
             isLoading && "bg-muted-foreground",
-            !isLoading && isConnected && "bg-green-500",
-            !isLoading && !isConnected && "bg-destructive"
+            isConnected && "bg-green-500",
+            isError && "bg-destructive"
           )}
         />
         <span
           className={cn(
             "relative inline-flex rounded-full h-2.5 w-2.5",
             isLoading && "bg-muted-foreground",
-            !isLoading && isConnected && "bg-green-500",
-            !isLoading && !isConnected && "bg-destructive"
+            isConnected && "bg-green-500",
+            isError && "bg-destructive"
           )}
         />
       </span>
 
-      <span className="leading-none">
-        {isLoading ? "Proxmox API…" : isConnected ? "Proxmox API" : "Proxmox API"}
-      </span>
+      <span className="leading-none">{label}</span>
 
-      {!isLoading && (
+      {badge && (
         <span
           className={cn(
             "ml-auto text-xs font-normal",
             isConnected ? "text-green-500" : "text-destructive"
           )}
         >
-          {isConnected ? "OK" : "KO"}
+          {badge}
         </span>
       )}
     </div>

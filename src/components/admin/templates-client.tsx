@@ -67,11 +67,21 @@ export function TemplatesClient() {
   const {
     data: proxmoxTemplates = [],
     isFetching: isLoadingProxmox,
+    isError: isProxmoxError,
+    error: proxmoxError,
     refetch: fetchProxmox,
-  } = useQuery<ProxmoxTemplate[]>({
+  } = useQuery<ProxmoxTemplate[], Error>({
     queryKey: ["proxmox-templates"],
-    queryFn: () => fetch("/api/admin/proxmox-templates").then((r) => r.json()),
+    queryFn: async () => {
+      const r = await fetch("/api/admin/proxmox-templates");
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}));
+        throw new Error(body.error ?? "Erreur lors de la récupération des templates Proxmox.");
+      }
+      return r.json();
+    },
     enabled: false,
+    retry: false,
   });
 
   const form = useForm<AddFormData>({
@@ -231,6 +241,17 @@ export function TemplatesClient() {
               <span className="text-sm text-muted-foreground">
                 Scanning Proxmox storages...
               </span>
+            </div>
+          ) : isProxmoxError ? (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <p className="font-semibold mb-1">Impossible de récupérer les templates</p>
+              <p className="text-xs leading-relaxed">{proxmoxError?.message}</p>
+              <button
+                onClick={() => fetchProxmox()}
+                className="mt-2 text-xs underline underline-offset-2 hover:opacity-75"
+              >
+                Réessayer
+              </button>
             </div>
           ) : proxmoxTemplates.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4">
