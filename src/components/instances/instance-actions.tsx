@@ -20,9 +20,10 @@ import { Play, Square, Key, Trash2, Loader2 } from "lucide-react";
 interface Props {
   vmid: number;
   status: string;
+  userHasSshKey?: boolean;
 }
 
-export function InstanceActions({ vmid, status }: Props) {
+export function InstanceActions({ vmid, status, userHasSshKey = false }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -68,6 +69,7 @@ export function InstanceActions({ vmid, status }: Props) {
 
   const isRunning = status === "running";
   const isStopped = status === "stopped";
+  const canActivateSsh = isRunning && userHasSshKey;
 
   return (
     <div className="flex flex-wrap gap-2">
@@ -99,8 +101,15 @@ export function InstanceActions({ vmid, status }: Props) {
 
       <Button
         variant="outline"
-        disabled={!!loading || !isRunning}
+        disabled={!!loading || !canActivateSsh}
         onClick={() => action("ssh")}
+        title={
+          !userHasSshKey
+            ? "No SSH key configured. Go to Settings to add one."
+            : !isRunning
+              ? "Instance must be running"
+              : "Inject your SSH key into the instance"
+        }
       >
         {loading === "ssh" ? (
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />

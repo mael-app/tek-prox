@@ -18,7 +18,7 @@ export default async function InstanceDetailPage({ params }: Params) {
 
   const instance = await db.instance.findUnique({
     where: { vmid },
-    include: { ip: true, group: true },
+    include: { ip: true, group: true, user: true },
   });
 
   if (!instance) notFound();
@@ -26,6 +26,8 @@ export default async function InstanceDetailPage({ params }: Params) {
   if (instance.userId !== session.user.id && !session.user.isAdmin) {
     redirect("/instances");
   }
+
+  const userHasSshKey = !!instance.user.sshPublicKey;
 
   const details = [
     { label: "VMID", value: instance.vmid },
@@ -66,7 +68,11 @@ export default async function InstanceDetailPage({ params }: Params) {
           <CardTitle>Actions</CardTitle>
         </CardHeader>
         <CardContent>
-          <InstanceActions vmid={vmid} status={instance.status} />
+          <InstanceActions
+            vmid={vmid}
+            status={instance.status}
+            userHasSshKey={userHasSshKey}
+          />
         </CardContent>
       </Card>
 
