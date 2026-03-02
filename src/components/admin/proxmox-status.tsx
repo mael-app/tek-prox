@@ -15,7 +15,6 @@ type AgentStatus = "loading" | "connected" | "unreachable";
 export function ProxmoxStatusIndicator() {
   const [apiStatus, setApiStatus] = useState<ApiStatus>("loading");
   const [agentStatus, setAgentStatus] = useState<AgentStatus>("loading");
-  const [apiCommit, setApiCommit] = useState<string | null>(null);
   const [agentCommit, setAgentCommit] = useState<string | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
@@ -38,7 +37,6 @@ export function ProxmoxStatusIndicator() {
       if (data.proxmox.connected) setApiStatus("connected");
       else setApiStatus(data.proxmox.reason === "node" ? "node" : "unreachable");
       setAgentStatus(data.agent.connected ? "connected" : "unreachable");
-      setApiCommit(data.proxmox.commit ?? null);
       setAgentCommit(data.agent.commit ?? null);
     } catch {
       if (controller.signal.aborted) return;
@@ -74,7 +72,6 @@ export function ProxmoxStatusIndicator() {
             apiStatus === "connected" ? "ok" :
             "error"
           }
-          commit={apiCommit}
         />
         <StatusRow
           label="Agent"

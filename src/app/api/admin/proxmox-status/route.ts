@@ -21,7 +21,7 @@ export async function GET() {
   ]);
 
   return NextResponse.json({
-    proxmox: { connected: ok, reason: reason ?? null, commit: process.env.GIT_COMMIT ?? null },
+    proxmox: { connected: ok, reason: reason ?? null },
     agent: { connected: agentResult.ok, commit: agentResult.commit ?? null },
   });
 }
