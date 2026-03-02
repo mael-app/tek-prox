@@ -8,6 +8,7 @@ Performs privileged LXC operations on behalf of the Next.js app.
 import hmac
 import os
 import secrets
+import shlex
 import subprocess
 from flask import Flask, Blueprint, request, jsonify
 
@@ -181,7 +182,7 @@ def inject_ssh_key():
                 "--",
                 "sh",
                 "-c",
-                f'echo {repr(ssh_key)} >> /root/.ssh/authorized_keys',
+                f'echo {shlex.quote(ssh_key)} >> /root/.ssh/authorized_keys',
             ],
             check=True,
             capture_output=True,

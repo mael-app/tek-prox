@@ -15,15 +15,9 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Agent runs as root on purpose — needs pct/pvesh access on the Proxmox host
-# when using --pid=host or exec'd directly; keep non-root if running in a VM.
-RUN groupadd --system --gid 1001 agent \
- && useradd  --system --uid 1001 --gid agent agent
-
+# Agent runs as root on purpose — needs pct/pvesh access on the Proxmox host.
 COPY --from=builder /install /usr/local
 COPY agent.py .
-
-USER agent
 
 EXPOSE 8765
 
