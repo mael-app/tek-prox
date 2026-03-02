@@ -18,11 +18,16 @@ export async function injectSshKey(vmid: number, sshKey: string): Promise<void> 
   await agentClient.post("inject-ssh-key", { vmid, ssh_key: sshKey }, { timeout: 90_000 });
 }
 
-export async function checkAgentHealth(timeoutMs = 5000): Promise<boolean> {
+export async function checkAgentHealth(
+  timeoutMs = 5000
+): Promise<{ ok: boolean; commit?: string }> {
   try {
     const res = await agentClient.get("health", { timeout: timeoutMs });
-    return res.data?.status === "ok";
+    if (res.data?.status === "ok") {
+      return { ok: true, commit: res.data.commit as string | undefined };
+    }
+    return { ok: false };
   } catch {
-    return false;
+    return { ok: false };
   }
 }

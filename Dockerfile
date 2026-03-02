@@ -30,9 +30,12 @@ RUN npm ci --omit=dev
 FROM node:22-slim AS runner
 WORKDIR /app
 
+# Baked-in at build time: docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD)
+ARG GIT_COMMIT=unknown
 ENV NODE_ENV=production \
     PORT=3000 \
-    HOSTNAME=0.0.0.0
+    HOSTNAME=0.0.0.0 \
+    GIT_COMMIT=$GIT_COMMIT
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       openssl \

@@ -61,7 +61,8 @@ def require_auth(f):
 @agent.route("/agent/health", methods=["GET"])
 @require_auth
 def health():
-    return jsonify({"status": "ok"})
+    commit = os.environ.get("GIT_COMMIT", "unknown")
+    return jsonify({"status": "ok", "commit": commit})
 
 
 @agent.route("/agent/set-unconfined", methods=["POST"])

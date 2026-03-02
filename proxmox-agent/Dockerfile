@@ -23,6 +23,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /install /usr/local
 COPY agent.py .
 
+# Baked-in at build time: docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD)
+ARG GIT_COMMIT=unknown
+ENV GIT_COMMIT=$GIT_COMMIT
+
 EXPOSE 8765
 
 CMD ["gunicorn", "--bind", "0.0.0.0:8765", "--workers", "2", "--timeout", "60", "--access-logfile", "-", "agent:app"]

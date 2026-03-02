@@ -2,6 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type ApiStatus = "loading" | "connected" | "unreachable" | "node";
 type AgentStatus = "loading" | "connected" | "unreachable";
@@ -9,10 +15,11 @@ type AgentStatus = "loading" | "connected" | "unreachable";
 export function ProxmoxStatusIndicator() {
   const [apiStatus, setApiStatus] = useState<ApiStatus>("loading");
   const [agentStatus, setAgentStatus] = useState<AgentStatus>("loading");
+  const [apiCommit, setApiCommit] = useState<string | null>(null);
+  const [agentCommit, setAgentCommit] = useState<string | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
   const check = async () => {
-    // Abort any in-flight request so stale responses never overwrite fresh ones
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
@@ -31,8 +38,9 @@ export function ProxmoxStatusIndicator() {
       if (data.proxmox.connected) setApiStatus("connected");
       else setApiStatus(data.proxmox.reason === "node" ? "node" : "unreachable");
       setAgentStatus(data.agent.connected ? "connected" : "unreachable");
+      setApiCommit(data.proxmox.commit ?? null);
+      setAgentCommit(data.agent.commit ?? null);
     } catch {
-      // Ignore errors from aborted requests (e.g. Strict Mode cleanup)
       if (controller.signal.aborted) return;
       setApiStatus("unreachable");
       setAgentStatus("unreachable");
@@ -46,41 +54,44 @@ export function ProxmoxStatusIndicator() {
     const interval = setInterval(check, 30_000);
     return () => {
       clearInterval(interval);
-      // Abort in-flight request on unmount to prevent state updates on dead component
       controllerRef.current?.abort();
     };
   }, []);
 
   return (
-    <div className="flex flex-col gap-0.5">
-      <StatusRow
-        label="Proxmox API"
-        badge={
-          apiStatus === "loading" ? null :
-          apiStatus === "connected" ? "OK" :
-          apiStatus === "node" ? "Bad node" :
-          "Unreachable"
-        }
-        state={
-          apiStatus === "loading" ? "loading" :
-          apiStatus === "connected" ? "ok" :
-          "error"
-        }
-      />
-      <StatusRow
-        label="Agent"
-        badge={
-          agentStatus === "loading" ? null :
-          agentStatus === "connected" ? "OK" :
-          "Unreachable"
-        }
-        state={
-          agentStatus === "loading" ? "loading" :
-          agentStatus === "connected" ? "ok" :
-          "error"
-        }
-      />
-    </div>
+    <TooltipProvider delayDuration={200}>
+      <div className="flex flex-col gap-0.5">
+        <StatusRow
+          label="Proxmox API"
+          badge={
+            apiStatus === "loading" ? null :
+            apiStatus === "connected" ? "OK" :
+            apiStatus === "node" ? "Bad node" :
+            "Unreachable"
+          }
+          state={
+            apiStatus === "loading" ? "loading" :
+            apiStatus === "connected" ? "ok" :
+            "error"
+          }
+          commit={apiCommit}
+        />
+        <StatusRow
+          label="Agent"
+          badge={
+            agentStatus === "loading" ? null :
+            agentStatus === "connected" ? "OK" :
+            "Unreachable"
+          }
+          state={
+            agentStatus === "loading" ? "loading" :
+            agentStatus === "connected" ? "ok" :
+            "error"
+          }
+          commit={agentCommit}
+        />
+      </div>
+    </TooltipProvider>
   );
 }
 
@@ -88,18 +99,21 @@ function StatusRow({
   label,
   badge,
   state,
+  commit,
 }: {
   label: string;
   badge: string | null;
   state: "loading" | "ok" | "error";
+  commit?: string | null;
 }) {
-  return (
+  const inner = (
     <div
       className={cn(
         "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium",
         state === "loading" && "text-muted-foreground",
         state === "ok" && "text-foreground",
-        state === "error" && "text-destructive"
+        state === "error" && "text-destructive",
+        commit && "cursor-default"
       )}
     >
       <span className="relative flex h-2.5 w-2.5 shrink-0">
@@ -134,5 +148,16 @@ function StatusRow({
         </span>
       )}
     </div>
+  );
+
+  if (!commit) return inner;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{inner}</TooltipTrigger>
+      <TooltipContent side="right">
+        <span className="font-mono text-xs">{commit}</span>
+      </TooltipContent>
+    </Tooltip>
   );
 }

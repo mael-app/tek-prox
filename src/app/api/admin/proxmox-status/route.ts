@@ -15,13 +15,13 @@ export async function GET() {
   }
 
   const client = getProxmoxClient();
-  const [{ ok, reason }, agentOk] = await Promise.all([
+  const [{ ok, reason }, agentResult] = await Promise.all([
     client.ping(),
     checkAgentHealth(),
   ]);
 
   return NextResponse.json({
-    proxmox: { connected: ok, reason: reason ?? null },
-    agent: { connected: agentOk },
+    proxmox: { connected: ok, reason: reason ?? null, commit: process.env.GIT_COMMIT ?? null },
+    agent: { connected: agentResult.ok, commit: agentResult.commit ?? null },
   });
 }
