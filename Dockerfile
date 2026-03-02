@@ -14,6 +14,9 @@ FROM node:22-slim AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Make the commit hash available to next.config.ts at build time
+ARG GIT_COMMIT=unknown
+ENV GIT_COMMIT=$GIT_COMMIT
 RUN npx prisma generate
 RUN npm run build
 

@@ -18,6 +18,28 @@ agent = Blueprint("agent", __name__)
 
 API_KEY = os.environ.get("AGENT_API_KEY", "")
 
+
+def _resolve_commit() -> str:
+    """Read the short git commit hash, falling back to GIT_COMMIT env var."""
+    env_commit = os.environ.get("GIT_COMMIT")
+    if env_commit and env_commit != "unknown":
+        return env_commit
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return env_commit or "unknown"
+
+
+GIT_COMMIT = _resolve_commit()
+
 # When running inside Docker on the Proxmox host, `pct` is not in the
 # container's filesystem. nsenter -t 1 -m -- executes the command in the
 # host's mount namespace so all Proxmox binaries are available.
@@ -61,8 +83,7 @@ def require_auth(f):
 @agent.route("/agent/health", methods=["GET"])
 @require_auth
 def health():
-    commit = os.environ.get("GIT_COMMIT", "unknown")
-    return jsonify({"status": "ok", "commit": commit})
+    return jsonify({"status": "ok", "commit": GIT_COMMIT})
 
 
 @agent.route("/agent/set-unconfined", methods=["POST"])
