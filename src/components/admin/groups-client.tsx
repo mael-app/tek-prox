@@ -33,7 +33,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, UserPlus, Users, Search, UserMinus } from "lucide-react";
+import { Plus, Trash2, UserPlus, Users, Search, UserMinus, Upload } from "lucide-react";
 import { GroupDockerCompatibilityPermission } from "./group-docker-compatibility";
 
 const schema = z.object({
@@ -70,6 +70,11 @@ interface UserEntry {
   groups: { group: { id: string; name: string } }[];
 }
 
+interface ImportResult {
+  email: string;
+  status: "added" | "created_and_added" | "already_in_group" | "error";
+}
+
 export function AdminGroupsClient() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -79,6 +84,9 @@ export function AdminGroupsClient() {
   const [manageSearch, setManageSearch] = useState("");
   const [selectedToRemove, setSelectedToRemove] = useState<Set<string>>(new Set());
   const [groupSearch, setGroupSearch] = useState("");
+  const [importGroupId, setImportGroupId] = useState<string | null>(null);
+  const [importEmails, setImportEmails] = useState("");
+  const [importResults, setImportResults] = useState<ImportResult[] | null>(null);
 
   const { data: groups = [], isLoading } = useQuery<Group[]>({
     queryKey: ["admin-groups"],
@@ -161,6 +169,30 @@ export function AdminGroupsClient() {
       qc.invalidateQueries({ queryKey: ["admin-users"] });
       qc.invalidateQueries({ queryKey: ["admin-groups"] });
     },
+  });
+
+  function parseEmails(raw: string): string[] {
+    return [...new Set(
+      raw.split(/[\n,;\s]+/).map((s) => s.trim().toLowerCase()).filter(Boolean)
+    )];
+  }
+
+  const importMutation = useMutation({
+    mutationFn: ({ groupId, emails }: { groupId: string; emails: string[] }) =>
+      fetch(`/api/admin/groups/${groupId}/members/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emails }),
+      }).then(async (r) => {
+        if (!r.ok) throw new Error((await r.json()).error);
+        return r.json() as Promise<{ results: ImportResult[] }>;
+      }),
+    onSuccess: (data) => {
+      setImportResults(data.results);
+      qc.invalidateQueries({ queryKey: ["admin-groups"] });
+      qc.invalidateQueries({ queryKey: ["admin-users"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   async function kickAll(groupId: string, memberIds: string[]) {
@@ -349,6 +381,19 @@ export function AdminGroupsClient() {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
+                    {/* Import members by email */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title="Import members by email"
+                      onClick={() => {
+                        setImportEmails("");
+                        setImportResults(null);
+                        setImportGroupId(g.id);
+                      }}
+                    >
+                      <Upload className="h-4 w-4" />
+                    </Button>
                     {/* Add members */}
                     <Button
                       variant="ghost"
@@ -451,6 +496,95 @@ export function AdminGroupsClient() {
               );
             })}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Import members by email dialog ── */}
+      <Dialog
+        open={!!importGroupId}
+        onOpenChange={(o) => {
+          if (!o) {
+            setImportGroupId(null);
+            setImportEmails("");
+            setImportResults(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Import members — {groups.find((g) => g.id === importGroupId)?.name}
+            </DialogTitle>
+          </DialogHeader>
+          {importResults === null ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Paste a list of email addresses (one per line, or comma/space separated).
+                Unknown users will be created automatically.
+              </p>
+              <textarea
+                value={importEmails}
+                onChange={(e) => setImportEmails(e.target.value)}
+                placeholder={"alice@epitech.eu\nbob@epitech.eu\n..."}
+                rows={8}
+                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 resize-y font-mono"
+              />
+              {(() => {
+                const count = parseEmails(importEmails).length;
+                return count > 0 ? (
+                  <p className="text-xs text-muted-foreground">{count} email{count > 1 ? "s" : ""} detected</p>
+                ) : null;
+              })()}
+              <Button
+                className="w-full"
+                disabled={importMutation.isPending || parseEmails(importEmails).length === 0}
+                onClick={() => {
+                  if (importGroupId) {
+                    importMutation.mutate({ groupId: importGroupId, emails: parseEmails(importEmails) });
+                  }
+                }}
+              >
+                {importMutation.isPending ? "Importing…" : "Import"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="space-y-2 text-sm">
+                {(["added", "created_and_added", "already_in_group", "error"] as const).map((status) => {
+                  const count = importResults.filter((r) => r.status === status).length;
+                  if (count === 0) return null;
+                  const labels: Record<typeof status, string> = {
+                    added: "✓ Added to group",
+                    created_and_added: "✓ Created and added",
+                    already_in_group: "— Already member",
+                    error: "✗ Invalid email",
+                  };
+                  const colors: Record<typeof status, string> = {
+                    added: "text-green-600 dark:text-green-400",
+                    created_and_added: "text-blue-600 dark:text-blue-400",
+                    already_in_group: "text-muted-foreground",
+                    error: "text-destructive",
+                  };
+                  return (
+                    <p key={status} className={colors[status]}>
+                      {labels[status]}: <span className="font-semibold">{count}</span>
+                    </p>
+                  );
+                })}
+              </div>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setImportGroupId(null);
+                  setImportEmails("");
+                  setImportResults(null);
+                }}
+              >
+                Close
+              </Button>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
