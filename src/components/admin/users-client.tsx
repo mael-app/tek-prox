@@ -17,8 +17,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -31,7 +42,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { UserPlus, Search } from "lucide-react";
+import { UserPlus, Search, Trash2 } from "lucide-react";
 
 interface Group {
   id: string;
@@ -52,6 +63,8 @@ export function AdminUsersClient() {
   const [assignUser, setAssignUser] = useState<UserEntry | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<string>("");
   const [search, setSearch] = useState("");
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<string[] | null>(null);
 
   const { data: users = [], isLoading: usersLoading } = useQuery<UserEntry[]>({
     queryKey: ["admin-users"],
@@ -64,13 +77,7 @@ export function AdminUsersClient() {
   });
 
   const addMember = useMutation({
-    mutationFn: ({
-      groupId,
-      userId,
-    }: {
-      groupId: string;
-      userId: string;
-    }) =>
+    mutationFn: ({ groupId, userId }: { groupId: string; userId: string }) =>
       fetch(`/api/admin/groups/${groupId}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -89,13 +96,7 @@ export function AdminUsersClient() {
   });
 
   const removeMember = useMutation({
-    mutationFn: ({
-      groupId,
-      userId,
-    }: {
-      groupId: string;
-      userId: string;
-    }) =>
+    mutationFn: ({ groupId, userId }: { groupId: string; userId: string }) =>
       fetch(`/api/admin/groups/${groupId}/members`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -104,6 +105,31 @@ export function AdminUsersClient() {
     onSuccess: () => {
       toast.success("User removed from group");
       qc.invalidateQueries({ queryKey: ["admin-users"] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (ids: string[]) =>
+      Promise.all(
+        ids.map((id) =>
+          fetch(`/api/admin/users/${id}`, { method: "DELETE" }).then(
+            async (r) => {
+              if (!r.ok) throw new Error((await r.json()).error);
+            }
+          )
+        )
+      ),
+    onSuccess: (_, ids) => {
+      toast.success(
+        `${ids.length} user${ids.length > 1 ? "s" : ""} deleted`
+      );
+      qc.invalidateQueries({ queryKey: ["admin-users"] });
+      setSelectedUsers(new Set());
+      setDeleteTarget(null);
+    },
+    onError: (e: Error) => {
+      toast.error(e.message);
+      setDeleteTarget(null);
     },
   });
 
@@ -116,6 +142,22 @@ export function AdminUsersClient() {
       u.email?.toLowerCase().includes(q)
     );
   });
+
+  const filteredIds = filtered.map((u) => u.id);
+  const allFilteredSelected =
+    filteredIds.length > 0 && filteredIds.every((id) => selectedUsers.has(id));
+
+  function toggleSelectAll() {
+    setSelectedUsers((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        filteredIds.forEach((id) => next.delete(id));
+      } else {
+        filteredIds.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }
 
   return (
     <>
@@ -130,11 +172,29 @@ export function AdminUsersClient() {
             className="w-full pl-8 pr-3 h-9 rounded-md border border-input bg-transparent text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
           />
         </div>
+        {selectedUsers.size > 0 && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setDeleteTarget([...selectedUsers])}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete {selectedUsers.size} selected
+          </Button>
+        )}
       </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <Checkbox
+                  checked={allFilteredSelected}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all"
+                />
+              </TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Groups</TableHead>
@@ -145,6 +205,19 @@ export function AdminUsersClient() {
           <TableBody>
             {filtered.map((user) => (
               <TableRow key={user.id}>
+                <TableCell>
+                  <Checkbox
+                    checked={selectedUsers.has(user.id)}
+                    onCheckedChange={(checked) => {
+                      setSelectedUsers((prev) => {
+                        const next = new Set(prev);
+                        checked ? next.add(user.id) : next.delete(user.id);
+                        return next;
+                      });
+                    }}
+                    aria-label={`Select ${user.name ?? user.email}`}
+                  />
+                </TableCell>
                 <TableCell className="font-medium">
                   {user.name ?? "—"}
                 </TableCell>
@@ -170,26 +243,41 @@ export function AdminUsersClient() {
                 </TableCell>
                 <TableCell>{user._count.instances}</TableCell>
                 <TableCell>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="cursor-pointer"
-                        onClick={() => setAssignUser(user)}
-                      >
-                        <UserPlus className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Assign to a group</TooltipContent>
-                  </Tooltip>
+                  <div className="flex items-center gap-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="cursor-pointer"
+                          onClick={() => setAssignUser(user)}
+                        >
+                          <UserPlus className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Assign to a group</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="cursor-pointer"
+                          onClick={() => setDeleteTarget([user.id])}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Delete user</TooltipContent>
+                    </Tooltip>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
             {filtered.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-center text-muted-foreground py-8"
                 >
                   No users yet
@@ -200,6 +288,7 @@ export function AdminUsersClient() {
         </Table>
       </div>
 
+      {/* Assign to group dialog */}
       <Dialog
         open={!!assignUser}
         onOpenChange={(open) => !open && setAssignUser(null)}
@@ -237,6 +326,41 @@ export function AdminUsersClient() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete{" "}
+              {deleteTarget?.length === 1
+                ? "this user"
+                : `${deleteTarget?.length} users`}
+              ?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.length === 1
+                ? "This will permanently delete this user and all their group memberships. Users with active instances cannot be deleted."
+                : `This will permanently delete ${deleteTarget?.length} users and all their group memberships. Users with active instances cannot be deleted.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+              onClick={() =>
+                deleteTarget && deleteMutation.mutate(deleteTarget)
+              }
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
