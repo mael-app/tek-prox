@@ -91,8 +91,10 @@ class ProxmoxClient {
     return res.data.data;
   }
 
-  async getNextVmid(): Promise<number> {
-    const res = await this.client.get<{ data: number }>("/cluster/nextid");
+  async getNextVmid(options?: { timeout?: number }): Promise<number> {
+    const res = await this.client.get<{ data: number }>("/cluster/nextid", {
+      timeout: options?.timeout,
+    });
     return res.data.data;
   }
 
