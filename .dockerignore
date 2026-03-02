@@ -1,0 +1,28 @@
+# Dependencies and build output
+node_modules
+.next
+out
+build
+
+# Environment files (injected at runtime via Docker)
+.env
+.env.*
+
+# Database files
+*.db
+*.db-journal
+
+# Dev / CI / tooling
+.git
+.gitignore
+README.md
+*.md
+
+# Python agent (deployed separately on the Proxmox host)
+proxmox-agent/
+
+# Misc
+.DS_Store
+*.pem
+coverage
+npm-debug.log*
