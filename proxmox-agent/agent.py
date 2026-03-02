@@ -82,10 +82,16 @@ def set_unconfined():
 
     lines_to_manage = [
         "lxc.apparmor.profile: unconfined",
-        "lxc.cgroup2.devices.allow: a",
         "lxc.cap.drop:",
-        "lxc.mount.auto: proc:rw sys:rw",
     ]
+
+#         lines_to_manage = [
+#             "lxc.apparmor.profile: unconfined",
+#             "lxc.cgroup2.devices.allow: a",
+#             "lxc.cap.drop:",
+#             "lxc.mount.auto: proc:rw sys:rw",
+#         ]
+
 
     try:
         # Read existing config
