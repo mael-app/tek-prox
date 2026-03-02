@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
+import { audit } from "@/lib/audit";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -24,7 +25,17 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     );
   }
 
+  const ipRange = await db.ipRange.findUnique({
+    where: { id },
+    select: { label: true, startIp: true, endIp: true },
+  });
   await db.ipRange.delete({ where: { id } });
+
+  audit(session.user, "IP_RANGE_DELETE", id, {
+    label: ipRange?.label,
+    startIp: ipRange?.startIp,
+    endIp: ipRange?.endIp,
+  });
 
   return NextResponse.json({ success: true });
 }

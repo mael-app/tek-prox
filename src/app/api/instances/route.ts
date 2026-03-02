@@ -6,6 +6,7 @@ import { getProxmoxClient } from "@/lib/proxmox";
 import { allocateIp } from "@/lib/ip";
 import { getNextVmid } from "@/lib/utils/vmid";
 import { isAxiosError } from "axios";
+import { audit } from "@/lib/audit";
 const createSchema = z.object({
   name: z.string().min(1).max(64),
   ramMb: z.number().int().min(128),
@@ -173,6 +174,16 @@ export async function POST(req: NextRequest) {
     const result = await db.instance.findUnique({
       where: { id: instance.id },
       include: { ip: true },
+    });
+
+    audit(session.user, "INSTANCE_CREATE", instance.id, {
+      vmid,
+      name,
+      groupId: group.id,
+      groupName: group.name,
+      ramMb,
+      cpuCores,
+      diskGb,
     });
 
     return NextResponse.json(result, { status: 201 });

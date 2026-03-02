@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { expandRange } from "@/lib/ip";
+import { audit } from "@/lib/audit";
 
 const ipv4 = z.string().regex(/^(\d{1,3}\.){3}\d{1,3}$/, "Invalid IPv4 address");
 
@@ -39,9 +40,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await requireSession();
-  if (!session?.user.isAdmin) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  if (!session?.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json();
   const parsed = ipRangeSchema.safeParse(body);
@@ -72,6 +71,14 @@ export async function POST(req: NextRequest) {
       },
     },
     include: { _count: { select: { addresses: true } } },
+  });
+
+  audit(session.user, "IP_RANGE_CREATE", ipRange.id, {
+    label: label ?? null,
+    startIp: startIp ?? null,
+    endIp: endIp ?? null,
+    individualIp: isIndividual ? addresses[0] : null,
+    count: addresses.length,
   });
 
   return NextResponse.json(ipRange, { status: 201 });

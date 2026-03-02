@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { getProxmoxClient } from "@/lib/proxmox";
 import { releaseIp } from "@/lib/ip";
+import { audit } from "@/lib/audit";
 
 type Params = { params: Promise<{ vmid: string }> };
 
@@ -77,6 +78,13 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   // Delete from DB
   await db.instance.delete({ where: { id: instance.id } });
+
+  audit(session.user, "INSTANCE_DELETE", instance.id, {
+    vmid: instance.vmid,
+    name: instance.name,
+    ownerId: instance.userId,
+    deletedByAdmin: instance.userId !== session.user.id,
+  });
 
   return NextResponse.json({ success: true });
 }

@@ -17,6 +17,7 @@ import {
   LogOut,
   SlidersHorizontal,
   Box,
+  ScrollText,
 } from "lucide-react";
 
 const navItems = [
@@ -31,6 +32,7 @@ const adminItems = [
   { href: "/admin/ip-ranges", label: "IP Ranges", icon: Network },
   { href: "/admin/templates", label: "Templates", icon: Box },
   { href: "/admin/settings", label: "Settings", icon: SlidersHorizontal },
+  { href: "/admin/audit-logs", label: "Audit Logs", icon: ScrollText },
 ];
 
 export function Sidebar() {

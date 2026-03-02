@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
+import { audit } from "@/lib/audit";
 
 const updateSchema = z.object({
   name: z.string().min(1).max(64).optional(),
@@ -42,7 +43,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
-  if (!(await adminCheck())) {
+  const session = await adminCheck();
+  if (!session) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -55,17 +57,23 @@ export async function PUT(req: NextRequest, { params }: Params) {
 
   const group = await db.group.update({ where: { id }, data: parsed.data });
 
+  audit(session.user, "GROUP_UPDATE", id, { name: group.name, changes: parsed.data });
+
   return NextResponse.json(group);
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  if (!(await adminCheck())) {
+  const session = await adminCheck();
+  if (!session) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const { id } = await params;
 
+  const group = await db.group.findUnique({ where: { id }, select: { name: true } });
   await db.group.delete({ where: { id } });
+
+  audit(session.user, "GROUP_DELETE", id, { name: group?.name });
 
   return NextResponse.json({ success: true });
 }

@@ -141,3 +141,19 @@ model IpAddress {
   instance   Instance? @relation(fields: [instanceId], references: [id])
   createdAt  DateTime  @default(now())
 }
+
+// Immutable append-only log of sensitive / destructive operations.
+// userId is a plain String (no FK) so logs survive user deletion.
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  userEmail String?
+  action    String
+  targetId  String?
+  meta      String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}

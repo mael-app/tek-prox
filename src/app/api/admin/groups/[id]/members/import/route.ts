@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
+import { audit } from "@/lib/audit";
 
 const schema = z.object({
   emails: z.array(z.string()).min(1).max(500),
@@ -63,6 +64,18 @@ export async function POST(req: NextRequest, { params }: Params) {
       results.push({ email, status: created ? "created_and_added" : "added" });
     }
   }
+
+  const added = results.filter((r) => r.status === "added" || r.status === "created_and_added").length;
+  const created = results.filter((r) => r.status === "created_and_added").length;
+
+  audit(session.user, "MEMBER_IMPORT", groupId, {
+    groupName: group.name,
+    total: emails.length,
+    added,
+    created,
+    alreadyInGroup: results.filter((r) => r.status === "already_in_group").length,
+    errors: results.filter((r) => r.status === "error").length,
+  });
 
   return NextResponse.json({ results });
 }

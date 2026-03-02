@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
+import { audit } from "@/lib/audit";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -38,6 +39,8 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   }
 
   await db.user.delete({ where: { id } });
+
+  audit(session.user, "USER_DELETE", id, { email: user.email, name: user.name });
 
   return NextResponse.json({ success: true });
 }

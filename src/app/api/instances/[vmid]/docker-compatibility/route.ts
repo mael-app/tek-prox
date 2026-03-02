@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { getProxmoxClient } from "@/lib/proxmox";
 import { setUnconfined } from "@/lib/agent";
+import { audit } from "@/lib/audit";
 
 const bodySchema = z.object({ enabled: z.boolean() });
 
@@ -85,6 +86,14 @@ export async function POST(_req: NextRequest, { params }: Params) {
     await db.instance.update({
       where: { vmid },
       data: { dockerCompatibilityEnabled: enabled },
+    });
+
+    audit(session.user, "DOCKER_TOGGLE", instance.id, {
+      vmid: instance.vmid,
+      name: instance.name,
+      enabled,
+      ownerId: instance.userId,
+      toggledByAdmin: instance.userId !== session.user.id,
     });
 
     return NextResponse.json({

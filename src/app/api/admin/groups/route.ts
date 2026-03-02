@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
+import { audit } from "@/lib/audit";
 
 const groupSchema = z.object({
   name: z.string().min(1).max(64),
@@ -43,6 +44,8 @@ export async function POST(req: NextRequest) {
   }
 
   const group = await db.group.create({ data: parsed.data });
+
+  audit(session.user, "GROUP_CREATE", group.id, { name: group.name });
 
   return NextResponse.json(group, { status: 201 });
 }
