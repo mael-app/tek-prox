@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAxiosError } from "axios";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { getProxmoxClient } from "@/lib/proxmox";
@@ -49,9 +50,40 @@ export async function GET() {
     return NextResponse.json(available);
   } catch (err) {
     console.error("Failed to list Proxmox templates:", err);
+
+    if (isAxiosError(err)) {
+      const status = err.response?.status;
+      if (status === 500 || status === 404) {
+        const node = process.env.PROXMOX_NODE ?? "pve";
+        return NextResponse.json(
+          {
+            error: `Le nœud Proxmox "${node}" est introuvable. Vérifiez la variable d'environnement PROXMOX_NODE.`,
+            code: "INVALID_NODE",
+          },
+          { status: 502 }
+        );
+      }
+      if (!err.response) {
+        return NextResponse.json(
+          {
+            error: "Impossible de joindre l'API Proxmox. Vérifiez PROXMOX_HOST et la connectivité réseau.",
+            code: "UNREACHABLE",
+          },
+          { status: 502 }
+        );
+      }
+      return NextResponse.json(
+        {
+          error: `Erreur Proxmox : ${err.response.status} ${err.response.statusText}`,
+          code: "PROXMOX_ERROR",
+        },
+        { status: 502 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Failed to connect to Proxmox" },
-      { status: 502 }
+      { error: "Erreur interne du serveur.", code: "UNKNOWN" },
+      { status: 500 }
     );
   }
 }

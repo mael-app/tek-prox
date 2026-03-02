@@ -98,9 +98,25 @@ class ProxmoxClient {
     return res.data.data;
   }
 
-  async getNextVmid(): Promise<number> {
-    const res = await this.client.get<{ data: number }>("/cluster/nextid");
+  async getNextVmid(options?: { timeout?: number }): Promise<number> {
+    const res = await this.client.get<{ data: number }>("/cluster/nextid", {
+      timeout: options?.timeout,
+    });
     return res.data.data;
+  }
+
+  async ping(timeoutMs = 5000): Promise<{ ok: boolean; reason?: string }> {
+    try {
+      await this.client.get("/cluster/nextid", { timeout: timeoutMs });
+    } catch {
+      return { ok: false, reason: "unreachable" };
+    }
+    try {
+      await this.client.get(`/nodes/${this.node}/lxc`, { timeout: timeoutMs });
+    } catch {
+      return { ok: false, reason: "node" };
+    }
+    return { ok: true };
   }
 
   async listStorages(): Promise<ProxmoxStorage[]> {
