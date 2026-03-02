@@ -12,6 +12,13 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   const { id } = await params;
 
+  if (id === session.user.id) {
+    return NextResponse.json(
+      { error: "You cannot delete your own account" },
+      { status: 400 }
+    );
+  }
+
   const user = await db.user.findUnique({
     where: { id },
     include: { _count: { select: { instances: true } } },

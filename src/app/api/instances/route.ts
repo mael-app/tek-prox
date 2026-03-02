@@ -183,22 +183,23 @@ export async function POST(req: NextRequest) {
       data: { instanceId: null },
     });
     await db.instance.delete({ where: { id: instance.id } });
+    // Log the full error server-side for debugging
     console.error("Instance creation failed:", err);
 
-    // Extract the Proxmox error detail when available
+    // Return a user-friendly message without leaking internal Proxmox details
     let message = "Failed to create instance on Proxmox.";
     if (isAxiosError(err) && err.response) {
       const data = err.response.data as Record<string, unknown> | undefined;
       if (data?.errors && typeof data.errors === "object") {
-        // Proxmox errors object: { field: "message", ... }
-        message = Object.entries(data.errors as Record<string, string>)
-          .map(([k, v]) => `${k}: ${v}`)
-          .join(" | ");
-      } else if (typeof data?.message === "string") {
+        // Proxmox validation errors — expose only the value strings, not field keys
+        const values = Object.values(data.errors as Record<string, string>).filter(
+          (v) => typeof v === "string" && v.length < 200
+        );
+        if (values.length > 0) message = values.join(". ");
+      } else if (typeof data?.message === "string" && data.message.length < 200) {
         message = data.message;
-      } else {
-        message = `Proxmox error ${err.response.status}: ${err.response.statusText}`;
       }
+      // Deliberately omit: status codes, statusText, internal paths
     }
 
     return NextResponse.json({ error: message }, { status: 500 });

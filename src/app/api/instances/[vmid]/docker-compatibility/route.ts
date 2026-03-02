@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { getProxmoxClient } from "@/lib/proxmox";
 import { setUnconfined } from "@/lib/agent";
+
+const bodySchema = z.object({ enabled: z.boolean() });
 
 type Params = { params: Promise<{ vmid: string }> };
 
@@ -12,7 +15,12 @@ export async function POST(_req: NextRequest, { params }: Params) {
 
   const { vmid: vmidStr } = await params;
   const vmid = parseInt(vmidStr, 10);
-  const { enabled } = await _req.json();
+
+  const parsed = bodySchema.safeParse(await _req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+  const { enabled } = parsed.data;
 
   // Fetch instance
   const instance = await db.instance.findUnique({
@@ -87,7 +95,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
   } catch (error) {
     console.error("Docker compatibility toggle error:", error);
     return NextResponse.json(
-      { error: String(error) },
+      { error: "Failed to toggle Docker compatibility" },
       { status: 500 }
     );
   }

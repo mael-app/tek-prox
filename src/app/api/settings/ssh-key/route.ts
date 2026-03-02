@@ -3,18 +3,17 @@ import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 
+const SSH_KEY_PATTERN =
+  /^(ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521|sk-ssh-ed25519@openssh\.com|sk-ecdsa-sha2-nistp256@openssh\.com) ([A-Za-z0-9+/]{20,}={0,3})( .+)?$/;
+
 const sshKeySchema = z.object({
   sshPublicKey: z
     .string()
     .min(1)
-    .refine(
-      (key) =>
-        key.startsWith("ssh-rsa ") ||
-        key.startsWith("ssh-ed25519 ") ||
-        key.startsWith("ecdsa-sha2-nistp") ||
-        key.startsWith("sk-"),
-      { message: "Invalid SSH public key format" }
-    ),
+    .max(4096, "SSH public key is too long")
+    .refine((key) => SSH_KEY_PATTERN.test(key.trim()), {
+      message: "Invalid SSH public key format",
+    }),
 });
 
 export async function GET() {

@@ -46,11 +46,14 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async jwt({ token, user }) {
-      // On first sign-in, `user` is populated — fetch groups and store in token
-      if (user) {
-        token.id = user.id;
+      // Reload group membership from DB on every token refresh so that
+      // privilege changes (admin grant/revoke, group reassignment) take
+      // effect immediately without requiring a new login.
+      const userId = (user?.id ?? token.id) as string | undefined;
+      if (userId) {
+        token.id = userId;
         const groups = await db.groupMember.findMany({
-          where: { userId: user.id },
+          where: { userId },
           include: { group: true },
         });
         token.isAdmin = groups.some((gm) => gm.group.isAdmin);
