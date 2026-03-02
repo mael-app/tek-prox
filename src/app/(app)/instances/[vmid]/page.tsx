@@ -51,12 +51,13 @@ export default async function InstanceDetailPage({ params }: Params) {
       <div className="flex items-center gap-3 mb-6">
         <h1 className="text-2xl font-bold">{instance.name}</h1>
         <Badge
-          variant={
+          variant="outline"
+          className={
             instance.status === "running"
-              ? "default"
+              ? "bg-green-500/15 text-green-700 dark:text-green-400 border-green-500/30"
               : instance.status === "stopped"
-                ? "secondary"
-                : "outline"
+                ? "bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30"
+                : "bg-muted text-muted-foreground"
           }
         >
           {instance.status}

@@ -112,7 +112,7 @@ export function DockerCompatibilityToggle({
           className={`
             relative inline-flex h-6 w-11 items-center rounded-full
             transition-colors focus-visible:outline-none focus-visible:ring-2
-            focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50
+            focus-visible:ring-offset-2 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50
             ${enabled ? "bg-primary" : "bg-input"}
           `}
         >
