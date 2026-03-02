@@ -9,9 +9,10 @@ import hmac
 import os
 import secrets
 import subprocess
-from flask import Flask, request, jsonify
+from flask import Flask, Blueprint, request, jsonify
 
 app = Flask(__name__)
+agent = Blueprint("agent", __name__, url_prefix="/agent")
 
 API_KEY = os.environ.get("AGENT_API_KEY", "")
 
@@ -37,13 +38,13 @@ def require_auth(f):
     return decorated
 
 
-@app.route("/health", methods=["GET"])
+@agent.route("/health", methods=["GET"])
 @require_auth
 def health():
     return jsonify({"status": "ok"})
 
 
-@app.route("/set-unconfined", methods=["POST"])
+@agent.route("/set-unconfined", methods=["POST"])
 @require_auth
 def set_unconfined():
     """
@@ -118,7 +119,7 @@ def set_unconfined():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/inject-ssh-key", methods=["POST"])
+@agent.route("/inject-ssh-key", methods=["POST"])
 @require_auth
 def inject_ssh_key():
     """
@@ -205,6 +206,8 @@ def inject_ssh_key():
         app.logger.error(f"inject-ssh-key error: {e}")
         return jsonify({"error": str(e)}), 500
 
+
+app.register_blueprint(agent)
 
 if __name__ == "__main__":
     port = int(os.environ.get("AGENT_PORT", 8765))
