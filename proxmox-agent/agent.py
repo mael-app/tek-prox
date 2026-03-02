@@ -12,7 +12,7 @@ import subprocess
 from flask import Flask, Blueprint, request, jsonify
 
 app = Flask(__name__)
-agent = Blueprint("agent", __name__, url_prefix="/agent")
+agent = Blueprint("agent", __name__)
 
 API_KEY = os.environ.get("AGENT_API_KEY", "")
 
