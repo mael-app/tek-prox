@@ -35,10 +35,10 @@ const schema = z.object({
   name: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/, {
     message: "Only lowercase letters, digits, and hyphens",
   }),
-  ramMb: z.number().int().min(128),
-  cpuCores: z.number().int().min(1),
-  diskGb: z.number().int().min(1),
-  swapMb: z.number().int().min(0),
+  ramMb: z.coerce.number().int().min(128),
+  cpuCores: z.coerce.number().int().min(1),
+  diskGb: z.coerce.number().int().min(1),
+  swapMb: z.coerce.number().int().min(0),
   osTemplate: z.string().min(1),
 });
 

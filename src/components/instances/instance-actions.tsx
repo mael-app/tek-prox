@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +32,7 @@ interface Props {
 
 export function InstanceActions({ vmid, status, userHasSshKey = false }: Props) {
   const router = useRouter();
+  const qc = useQueryClient();
   const [loading, setLoading] = useState<string | null>(null);
 
   async function action(type: string) {
@@ -56,6 +58,7 @@ export function InstanceActions({ vmid, status, userHasSshKey = false }: Props) 
 
       if (type === "delete") {
         toast.success("Instance deleted");
+        qc.invalidateQueries({ queryKey: ["instances"] });
         router.push("/instances");
         router.refresh();
       } else {

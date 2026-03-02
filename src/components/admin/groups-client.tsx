@@ -40,11 +40,11 @@ const schema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   isAdmin: z.boolean(),
-  maxRamMb: z.number().int().min(128),
-  maxCpuCores: z.number().int().min(1),
-  maxDiskGb: z.number().int().min(1),
-  maxInstances: z.number().int().min(1),
-  maxSwapMb: z.number().int().min(0),
+  maxRamMb: z.coerce.number().int().min(128),
+  maxCpuCores: z.coerce.number().int().min(1),
+  maxDiskGb: z.coerce.number().int().min(1),
+  maxInstances: z.coerce.number().int().min(1),
+  maxSwapMb: z.coerce.number().int().min(0),
 });
 
 type FormData = z.infer<typeof schema>;
