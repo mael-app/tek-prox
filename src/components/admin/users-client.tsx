@@ -31,7 +31,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { UserPlus } from "lucide-react";
+import { UserPlus, Search } from "lucide-react";
 
 interface Group {
   id: string;
@@ -51,6 +51,7 @@ export function AdminUsersClient() {
   const qc = useQueryClient();
   const [assignUser, setAssignUser] = useState<UserEntry | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<string>("");
+  const [search, setSearch] = useState("");
 
   const { data: users = [], isLoading: usersLoading } = useQuery<UserEntry[]>({
     queryKey: ["admin-users"],
@@ -108,8 +109,28 @@ export function AdminUsersClient() {
 
   if (usersLoading) return <p className="text-muted-foreground">Loading...</p>;
 
+  const filtered = users.filter((u) => {
+    const q = search.toLowerCase();
+    return (
+      u.name?.toLowerCase().includes(q) ||
+      u.email?.toLowerCase().includes(q)
+    );
+  });
+
   return (
     <>
+      <div className="flex items-center gap-2 mb-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search users..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-8 pr-3 h-9 rounded-md border border-input bg-transparent text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          />
+        </div>
+      </div>
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -122,7 +143,7 @@ export function AdminUsersClient() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.map((user) => (
+            {filtered.map((user) => (
               <TableRow key={user.id}>
                 <TableCell className="font-medium">
                   {user.name ?? "—"}
@@ -165,7 +186,7 @@ export function AdminUsersClient() {
                 </TableCell>
               </TableRow>
             ))}
-            {users.length === 0 && (
+            {filtered.length === 0 && (
               <TableRow>
                 <TableCell
                   colSpan={5}

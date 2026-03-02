@@ -10,6 +10,7 @@ import os
 import secrets
 import shlex
 import subprocess
+import time
 from flask import Flask, Blueprint, request, jsonify
 
 app = Flask(__name__)
@@ -163,66 +164,99 @@ def inject_ssh_key():
 
     vmid = int(vmid)
 
-    try:
-        # Ensure .ssh directory exists
-        subprocess.run(
-            pct_cmd("exec", str(vmid), "--", "mkdir", "-p", "/root/.ssh"),
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+    # Retry up to 8 times with increasing back-off to handle the window where
+    # the container has just been started and pct exec isn't ready yet.
+    MAX_RETRIES = 8
+    RETRY_DELAYS = [2, 3, 5, 5, 5, 10, 10, 10]  # seconds between attempts
 
-        # Set permissions
-        subprocess.run(
-            pct_cmd("exec", str(vmid), "--", "chmod", "700", "/root/.ssh"),
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+    def _not_ready(stderr: str) -> bool:
+        """Return True if the error looks like a transient 'not ready yet' condition."""
+        markers = [
+            "not running",
+            "not yet running",
+            "error with cgroup",
+            "unable to connect",
+            "connection refused",
+            "no such file",
+        ]
+        low = stderr.lower()
+        return any(m in low for m in markers)
 
-        # Check if key already exists to avoid duplicates
-        result = subprocess.run(
-            pct_cmd("exec", str(vmid), "--", "cat", "/root/.ssh/authorized_keys"),
-            capture_output=True,
-            text=True,
-        )
-        existing_keys = result.stdout if result.returncode == 0 else ""
+    last_error: str = ""
+    for attempt in range(MAX_RETRIES):
+        try:
+            # Ensure .ssh directory exists
+            subprocess.run(
+                pct_cmd("exec", str(vmid), "--", "mkdir", "-p", "/root/.ssh"),
+                check=True,
+                capture_output=True,
+                text=True,
+            )
 
-        if ssh_key in existing_keys:
-            return jsonify({"success": True, "message": "Key already present"})
+            # Set permissions
+            subprocess.run(
+                pct_cmd("exec", str(vmid), "--", "chmod", "700", "/root/.ssh"),
+                check=True,
+                capture_output=True,
+                text=True,
+            )
 
-        # Append key
-        subprocess.run(
-            pct_cmd(
-                "exec",
-                str(vmid),
-                "--",
-                "sh",
-                "-c",
-                f'echo {shlex.quote(ssh_key)} >> /root/.ssh/authorized_keys',
-            ),
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+            # Check if key already exists to avoid duplicates
+            result = subprocess.run(
+                pct_cmd("exec", str(vmid), "--", "cat", "/root/.ssh/authorized_keys"),
+                capture_output=True,
+                text=True,
+            )
+            existing_keys = result.stdout if result.returncode == 0 else ""
 
-        # Set authorized_keys permissions
-        subprocess.run(
-            pct_cmd("exec", str(vmid), "--", "chmod", "600", "/root/.ssh/authorized_keys"),
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+            if ssh_key in existing_keys:
+                return jsonify({"success": True, "message": "Key already present"})
 
-        app.logger.info(f"inject-ssh-key: vmid={vmid}, key injected")
-        return jsonify({"success": True})
+            # Append key
+            subprocess.run(
+                pct_cmd(
+                    "exec",
+                    str(vmid),
+                    "--",
+                    "sh",
+                    "-c",
+                    f'echo {shlex.quote(ssh_key)} >> /root/.ssh/authorized_keys',
+                ),
+                check=True,
+                capture_output=True,
+                text=True,
+            )
 
-    except subprocess.CalledProcessError as e:
-        app.logger.error(f"inject-ssh-key pct exec error: {e.stderr}")
-        return jsonify({"error": f"pct exec failed: {e.stderr}"}), 500
-    except Exception as e:
-        app.logger.error(f"inject-ssh-key error: {e}")
-        return jsonify({"error": str(e)}), 500
+            # Set authorized_keys permissions
+            subprocess.run(
+                pct_cmd("exec", str(vmid), "--", "chmod", "600", "/root/.ssh/authorized_keys"),
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+            app.logger.info(f"inject-ssh-key: vmid={vmid}, key injected")
+            return jsonify({"success": True})
+
+        except subprocess.CalledProcessError as e:
+            last_error = e.stderr or str(e)
+            if _not_ready(last_error) and attempt < MAX_RETRIES - 1:
+                delay = RETRY_DELAYS[attempt]
+                app.logger.warning(
+                    f"inject-ssh-key: vmid={vmid} not ready yet (attempt {attempt + 1}/{MAX_RETRIES}), "
+                    f"retrying in {delay}s — {last_error.strip()}"
+                )
+                time.sleep(delay)
+                continue
+            app.logger.error(f"inject-ssh-key pct exec error: {last_error}")
+            return jsonify({"error": f"pct exec failed: {last_error}"}), 500
+        except Exception as e:
+            app.logger.error(f"inject-ssh-key error: {e}")
+            return jsonify({"error": str(e)}), 500
+
+    # All retries exhausted
+    app.logger.error(f"inject-ssh-key: vmid={vmid} not ready after {MAX_RETRIES} attempts")
+    return jsonify({"error": f"Container not ready after {MAX_RETRIES} attempts: {last_error}"}), 503
 
 
 app.register_blueprint(agent)

@@ -14,7 +14,8 @@ export async function setUnconfined(vmid: number, enable = true): Promise<void> 
 }
 
 export async function injectSshKey(vmid: number, sshKey: string): Promise<void> {
-  await agentClient.post("inject-ssh-key", { vmid, ssh_key: sshKey });
+  // Generous timeout: the agent may retry up to 8× with back-off (~53 s worst case)
+  await agentClient.post("inject-ssh-key", { vmid, ssh_key: sshKey }, { timeout: 90_000 });
 }
 
 export async function checkAgentHealth(timeoutMs = 5000): Promise<boolean> {

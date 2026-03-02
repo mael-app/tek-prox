@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { injectSshKey } from "@/lib/agent";
+import axios from "axios";
 
 type Params = { params: Promise<{ vmid: string }> };
 
@@ -34,7 +35,15 @@ export async function POST(_req: NextRequest, { params }: Params) {
     );
   }
 
-  await injectSshKey(vmid, user.sshPublicKey);
+  try {
+    await injectSshKey(vmid, user.sshPublicKey);
+  } catch (err) {
+    const message = axios.isAxiosError(err)
+      ? (err.response?.data?.error ?? err.message)
+      : String(err);
+    console.error("[activate-ssh] agent error:", message);
+    return NextResponse.json({ error: `Agent error: ${message}` }, { status: 502 });
+  }
 
   return NextResponse.json({ success: true });
 }
