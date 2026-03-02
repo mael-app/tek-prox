@@ -85,10 +85,8 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
           build-args: |
-            BUILD_COMMIT_HASH=${{ env.commit_hash }}
+            GIT_COMMIT=${{ env.commit_hash }}
             NODE_ENV=production
-            REACT_APP_CI_BUILD=true
-            REACT_APP_ENVIRONMENT=${{ github.ref == 'refs/heads/dev' && 'development' || 'production' }}
 
       - name: Move cache
         run: |
@@ -109,6 +107,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
+      - name: Get short commit hash
+        run: echo "commit_hash=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -149,6 +150,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=local,src=/tmp/.buildx-cache-agent
           cache-to: type=local,dest=/tmp/.buildx-cache-agent-new,mode=max
+          build-args: |
+            GIT_COMMIT=${{ env.commit_hash }}
 
       - name: Move cache
         run: |
