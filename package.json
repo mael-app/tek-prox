@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run build:scripts && next build",
+    "build:scripts": "tsc scripts/setup-admin.ts --outDir scripts --module commonjs --esModuleInterop --skipLibCheck --resolveJsonModule",
     "start": "next start",
-    "setup:admin": "ts-node -P tsconfig.scripts.json scripts/setup-admin.ts"
+    "setup:admin": "node scripts/setup-admin.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

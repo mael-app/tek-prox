@@ -56,12 +56,16 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modul
 COPY --from=builder --chown=nextjs:nodejs /app/prisma           ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 
+# Compiled scripts for CLI commands
+COPY --from=builder --chown=nextjs:nodejs /app/scripts          ./scripts
+
 # Persistent volume for the SQLite database
 RUN mkdir -p /data && chown nextjs:nodejs /data
 VOLUME /data
 
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh
+COPY --chown=nextjs:nodejs docker-cli-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh docker-cli-entrypoint.sh
 
 USER nextjs
 EXPOSE 3000
