@@ -15,7 +15,11 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Agent runs as root on purpose — needs pct/pvesh access on the Proxmox host.
+# nsenter (from util-linux) is needed to escape the container's mount
+# namespace and reach the host's pct binary when running in Docker.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      util-linux \
+    && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /install /usr/local
 COPY agent.py .
 

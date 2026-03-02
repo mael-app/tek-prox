@@ -17,6 +17,20 @@ agent = Blueprint("agent", __name__)
 
 API_KEY = os.environ.get("AGENT_API_KEY", "")
 
+# When running inside Docker on the Proxmox host, `pct` is not in the
+# container's filesystem. nsenter -t 1 -m -- executes the command in the
+# host's mount namespace so all Proxmox binaries are available.
+# Requires the container to run with pid: "host" and privileged: true.
+USE_NSENTER = os.environ.get("USE_NSENTER", "true").lower() != "false"
+
+
+def pct_cmd(*args: str) -> list[str]:
+    """Build a pct command, optionally wrapped with nsenter."""
+    cmd = ["pct"] + list(args)
+    if USE_NSENTER:
+        return ["nsenter", "-t", "1", "-m", "--"] + cmd
+    return cmd
+
 
 def check_auth():
     """Validate X-Agent-Key header using constant-time comparison."""
@@ -148,7 +162,7 @@ def inject_ssh_key():
     try:
         # Ensure .ssh directory exists
         subprocess.run(
-            ["pct", "exec", str(vmid), "--", "mkdir", "-p", "/root/.ssh"],
+            pct_cmd("exec", str(vmid), "--", "mkdir", "-p", "/root/.ssh"),
             check=True,
             capture_output=True,
             text=True,
@@ -156,7 +170,7 @@ def inject_ssh_key():
 
         # Set permissions
         subprocess.run(
-            ["pct", "exec", str(vmid), "--", "chmod", "700", "/root/.ssh"],
+            pct_cmd("exec", str(vmid), "--", "chmod", "700", "/root/.ssh"),
             check=True,
             capture_output=True,
             text=True,
@@ -164,7 +178,7 @@ def inject_ssh_key():
 
         # Check if key already exists to avoid duplicates
         result = subprocess.run(
-            ["pct", "exec", str(vmid), "--", "cat", "/root/.ssh/authorized_keys"],
+            pct_cmd("exec", str(vmid), "--", "cat", "/root/.ssh/authorized_keys"),
             capture_output=True,
             text=True,
         )
@@ -175,15 +189,14 @@ def inject_ssh_key():
 
         # Append key
         subprocess.run(
-            [
-                "pct",
+            pct_cmd(
                 "exec",
                 str(vmid),
                 "--",
                 "sh",
                 "-c",
                 f'echo {shlex.quote(ssh_key)} >> /root/.ssh/authorized_keys',
-            ],
+            ),
             check=True,
             capture_output=True,
             text=True,
@@ -191,7 +204,7 @@ def inject_ssh_key():
 
         # Set authorized_keys permissions
         subprocess.run(
-            ["pct", "exec", str(vmid), "--", "chmod", "600", "/root/.ssh/authorized_keys"],
+            pct_cmd("exec", str(vmid), "--", "chmod", "600", "/root/.ssh/authorized_keys"),
             check=True,
             capture_output=True,
             text=True,
