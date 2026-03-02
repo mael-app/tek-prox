@@ -38,13 +38,13 @@ def require_auth(f):
     return decorated
 
 
-@agent.route("/health", methods=["GET"])
+@agent.route("/agent/health", methods=["GET"])
 @require_auth
 def health():
     return jsonify({"status": "ok"})
 
 
-@agent.route("/set-unconfined", methods=["POST"])
+@agent.route("/agent/set-unconfined", methods=["POST"])
 @require_auth
 def set_unconfined():
     """
@@ -119,7 +119,7 @@ def set_unconfined():
         return jsonify({"error": str(e)}), 500
 
 
-@agent.route("/inject-ssh-key", methods=["POST"])
+@agent.route("/agent/inject-ssh-key", methods=["POST"])
 @require_auth
 def inject_ssh_key():
     """
