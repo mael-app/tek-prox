@@ -13,6 +13,7 @@ const createSchema = z.object({
   diskGb: z.number().int().min(1),
   swapMb: z.number().int().min(0),
   osTemplate: z.string().min(1),
+  groupId: z.string().min(1),
 });
 
 export async function GET() {
@@ -21,7 +22,7 @@ export async function GET() {
 
   const instances = await db.instance.findMany({
     where: { userId: session.user.id },
-    include: { ip: true },
+    include: { ip: true, group: { select: { id: true, name: true } } },
     orderBy: { createdAt: "desc" },
   });
 
@@ -38,30 +39,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { name, ramMb, cpuCores, diskGb, swapMb, osTemplate } = parsed.data;
+  const { name, ramMb, cpuCores, diskGb, swapMb, osTemplate, groupId } = parsed.data;
 
-  // Load user's group and check quotas
-  const groupMember = await db.groupMember.findFirst({
-    where: { userId: session.user.id },
+  // Load the requested group and verify the user is a member (unless admin)
+  const group = await db.group.findUnique({
+    where: { id: groupId },
     include: {
-      group: {
-        include: {
-          instances: {
-            where: { userId: session.user.id },
-          },
-        },
-      },
+      instances: { where: { userId: session.user.id } },
     },
   });
 
-  if (!groupMember) {
-    return NextResponse.json(
-      { error: "You are not assigned to a group" },
-      { status: 403 }
-    );
+  if (!group) {
+    return NextResponse.json({ error: "Group not found" }, { status: 404 });
   }
 
-  const { group } = groupMember;
+  if (!session.user.isAdmin) {
+    const membership = await db.groupMember.findFirst({
+      where: { userId: session.user.id, groupId },
+    });
+    if (!membership) {
+      return NextResponse.json({ error: "You are not a member of this group" }, { status: 403 });
+    }
+  }
   const currentInstances = group.instances.length;
 
   if (currentInstances >= group.maxInstances) {

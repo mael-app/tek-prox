@@ -78,6 +78,7 @@ export function AdminGroupsClient() {
   const [addSearch, setAddSearch] = useState("");
   const [manageSearch, setManageSearch] = useState("");
   const [selectedToRemove, setSelectedToRemove] = useState<Set<string>>(new Set());
+  const [groupSearch, setGroupSearch] = useState("");
 
   const { data: groups = [], isLoading } = useQuery<Group[]>({
     queryKey: ["admin-groups"],
@@ -177,6 +178,14 @@ export function AdminGroupsClient() {
   }
 
   if (isLoading) return <p className="text-muted-foreground">Loading...</p>;
+
+  const filteredGroups = groups.filter((g) => {
+    const q = groupSearch.toLowerCase();
+    return (
+      g.name.toLowerCase().includes(q) ||
+      (g.description ?? "").toLowerCase().includes(q)
+    );
+  });
 
   // Derived data for dialogs
   const addGroupMembers = addMembersGroup
@@ -290,6 +299,17 @@ export function AdminGroupsClient() {
         </Dialog>
       </div>
 
+      <div className="relative mb-3">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+        <input
+          type="text"
+          placeholder="Search groups…"
+          value={groupSearch}
+          onChange={(e) => setGroupSearch(e.target.value)}
+          className="w-full pl-8 pr-3 h-9 rounded-md border border-input bg-transparent text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        />
+      </div>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -303,7 +323,7 @@ export function AdminGroupsClient() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {groups.map((g) => (
+            {filteredGroups.map((g) => (
               <TableRow key={g.id}>
                 <TableCell className="font-medium">
                   {g.name}
@@ -366,13 +386,13 @@ export function AdminGroupsClient() {
                 </TableCell>
               </TableRow>
             ))}
-            {groups.length === 0 && (
+            {filteredGroups.length === 0 && (
               <TableRow>
                 <TableCell
                   colSpan={6}
                   className="text-center text-muted-foreground py-8"
                 >
-                  No groups yet
+                  {groupSearch ? "No groups match your search." : "No groups yet"}
                 </TableCell>
               </TableRow>
             )}

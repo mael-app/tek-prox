@@ -1,10 +1,11 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,10 +32,21 @@ interface OsTemplate {
   template: string;
 }
 
+interface Group {
+  id: string;
+  name: string;
+  maxRamMb: number;
+  maxCpuCores: number;
+  maxDiskGb: number;
+  maxSwapMb: number;
+  maxInstances: number;
+}
+
 const schema = z.object({
   name: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/, {
     message: "Only lowercase letters, digits, and hyphens",
   }),
+  groupId: z.string().min(1, "Please select a group"),
   ramMb: z.coerce.number().int().min(128),
   cpuCores: z.coerce.number().int().min(1),
   diskGb: z.coerce.number().int().min(1),
@@ -45,19 +57,19 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 interface Props {
-  maxRamMb: number;
-  maxCpuCores: number;
-  maxDiskGb: number;
-  maxSwapMb: number;
+  groups: Group[];
 }
 
-export function CreateInstanceForm({
-  maxRamMb,
-  maxCpuCores,
-  maxDiskGb,
-  maxSwapMb,
-}: Props) {
+export function CreateInstanceForm({ groups }: Props) {
   const router = useRouter();
+  const qc = useQueryClient();
+  const [selectedGroupId, setSelectedGroupId] = useState<string>(groups[0]?.id ?? "");
+  const selectedGroup = groups.find((g) => g.id === selectedGroupId) ?? groups[0];
+
+  const maxRamMb = selectedGroup?.maxRamMb ?? 512;
+  const maxCpuCores = selectedGroup?.maxCpuCores ?? 1;
+  const maxDiskGb = selectedGroup?.maxDiskGb ?? 8;
+  const maxSwapMb = selectedGroup?.maxSwapMb ?? 0;
 
   const { data: templates = [], isLoading: isLoadingTemplates } = useQuery<OsTemplate[]>({
     queryKey: ["templates"],
@@ -68,6 +80,7 @@ export function CreateInstanceForm({
     resolver: zodResolver(schema) as Resolver<FormData>,
     defaultValues: {
       name: "",
+      groupId: groups[0]?.id ?? "",
       ramMb: Math.min(512, maxRamMb),
       cpuCores: 1,
       diskGb: Math.min(8, maxDiskGb),
@@ -92,6 +105,7 @@ export function CreateInstanceForm({
     }
 
     toast.success("Instance created successfully");
+    qc.invalidateQueries({ queryKey: ["instances"] });
     router.push("/instances");
     router.refresh();
   }
@@ -99,6 +113,55 @@ export function CreateInstanceForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {/* Group selector */}
+        {groups.length > 1 && (
+          <FormField
+            control={form.control}
+            name="groupId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Group</FormLabel>
+                <Select
+                  onValueChange={(val) => {
+                    field.onChange(val);
+                    setSelectedGroupId(val);
+                    // reset resource fields to new group defaults
+                    const g = groups.find((g) => g.id === val);
+                    if (g) {
+                      form.setValue("ramMb", Math.min(512, g.maxRamMb));
+                      form.setValue("cpuCores", 1);
+                      form.setValue("diskGb", Math.min(8, g.maxDiskGb));
+                      form.setValue("swapMb", 0);
+                    }
+                  }}
+                  value={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select group" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {groups.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        {g.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
+        {selectedGroup && (
+          <p className="text-xs text-muted-foreground -mt-2">
+            Limits: {maxRamMb} MB RAM · {maxCpuCores} CPU · {maxDiskGb} GB disk · {selectedGroup.maxInstances}× instances
+            {maxSwapMb > 0 ? ` · ${maxSwapMb} MB swap` : ""}
+          </p>
+        )}
+
         <FormField
           control={form.control}
           name="name"

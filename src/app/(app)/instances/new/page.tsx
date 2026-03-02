@@ -9,12 +9,18 @@ export default async function NewInstancePage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
-  const groupMember = await db.groupMember.findFirst({
-    where: { userId: session.user.id },
-    include: { group: true },
-  });
+  // Admins see all groups; regular users only see their own memberships
+  const groups = session.user.isAdmin
+    ? await db.group.findMany({ orderBy: { name: "asc" } })
+    : await db.groupMember
+        .findMany({
+          where: { userId: session.user.id },
+          include: { group: true },
+          orderBy: { group: { name: "asc" } },
+        })
+        .then((ms) => ms.map((m) => m.group));
 
-  if (!groupMember) {
+  if (groups.length === 0) {
     return (
       <div>
         <h1 className="text-2xl font-bold mb-4">New Instance</h1>
@@ -25,28 +31,15 @@ export default async function NewInstancePage() {
     );
   }
 
-  const { group } = groupMember;
-
   return (
     <div className="max-w-lg">
       <h1 className="text-2xl font-bold mb-6">New Instance</h1>
-
       <Card>
         <CardHeader>
           <CardTitle>Instance Configuration</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Limits: {group.maxRamMb} MB RAM · {group.maxCpuCores} CPU ·{" "}
-            {group.maxDiskGb} GB disk · {group.maxInstances} instance(s) total
-            {group.maxSwapMb > 0 ? ` · ${group.maxSwapMb} MB swap` : ""}
-          </p>
         </CardHeader>
         <CardContent>
-          <CreateInstanceForm
-            maxRamMb={group.maxRamMb}
-            maxCpuCores={group.maxCpuCores}
-            maxDiskGb={group.maxDiskGb}
-            maxSwapMb={group.maxSwapMb}
-          />
+          <CreateInstanceForm groups={groups} />
         </CardContent>
       </Card>
     </div>
