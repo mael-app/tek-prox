@@ -6,7 +6,7 @@ const agentClient = axios.create({
     "X-Agent-Key": process.env.AGENT_API_KEY ?? "",
     "Content-Type": "application/json",
   },
-  timeout: 30000,
+  timeout: 10000,
 });
 
 export async function setUnconfined(vmid: number, enable: boolean = true): Promise<void> {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isAxiosError } from "axios";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
@@ -166,7 +167,30 @@ export async function POST(req: NextRequest) {
     await proxmox.waitForTask(upid);
 
     // Patch config for Docker (unconfined)
-    await setUnconfined(vmid);
+    try {
+      await setUnconfined(vmid);
+    } catch (agentErr) {
+      // Rollback: delete LXC from Proxmox, release IP and DB record
+      await db.ipAddress.updateMany({
+        where: { id: ipRecord.id },
+        data: { instanceId: null },
+      });
+      await db.instance.delete({ where: { id: instance.id } });
+      try { await proxmox.deleteLxc(vmid); } catch { /* best-effort */ }
+      console.error("Agent call failed:", agentErr);
+
+      const isTimeout = isAxiosError(agentErr) &&
+        (agentErr.code === "ECONNABORTED" || agentErr.code === "ECONNREFUSED" || !agentErr.response);
+
+      return NextResponse.json(
+        {
+          error: isTimeout
+            ? "L'agent Proxmox est inaccessible. Vérifiez que le service agent est démarré et que AGENT_BASE_URL est correctement configuré."
+            : `L'agent Proxmox a retourné une erreur : ${isAxiosError(agentErr) ? agentErr.message : String(agentErr)}`,
+        },
+        { status: 503 }
+      );
+    }
 
     // Update instance status
     await db.instance.update({
@@ -188,9 +212,23 @@ export async function POST(req: NextRequest) {
     });
     await db.instance.delete({ where: { id: instance.id } });
     console.error("Instance creation failed:", err);
-    return NextResponse.json(
-      { error: "Failed to create instance on Proxmox" },
-      { status: 500 }
-    );
+
+    // Extract the Proxmox error detail when available
+    let message = "Failed to create instance on Proxmox.";
+    if (isAxiosError(err) && err.response) {
+      const data = err.response.data as Record<string, unknown> | undefined;
+      if (data?.errors && typeof data.errors === "object") {
+        // Proxmox errors object: { field: "message", ... }
+        message = Object.entries(data.errors as Record<string, string>)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(" | ");
+      } else if (typeof data?.message === "string") {
+        message = data.message;
+      } else {
+        message = `Proxmox error ${err.response.status}: ${err.response.statusText}`;
+      }
+    }
+
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

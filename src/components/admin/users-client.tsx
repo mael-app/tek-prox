@@ -26,6 +26,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { UserPlus } from "lucide-react";
 
 interface Group {
@@ -144,13 +149,19 @@ export function AdminUsersClient() {
                 </TableCell>
                 <TableCell>{user._count.instances}</TableCell>
                 <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setAssignUser(user)}
-                  >
-                    <UserPlus className="h-4 w-4" />
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="cursor-pointer"
+                        onClick={() => setAssignUser(user)}
+                      >
+                        <UserPlus className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Assign to a group</TooltipContent>
+                  </Tooltip>
                 </TableCell>
               </TableRow>
             ))}
