@@ -38,55 +38,51 @@ export async function POST(_req: NextRequest, { params }: Params) {
   try {
     const proxmox = getProxmoxClient();
 
-    if (enabled) {
-      // Enable Docker compatibility: shutdown, apply config, start
-      await proxmox.shutdownLxc(vmid);
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait for shutdown
+    // Check current instance status
+    const currentStatus = await proxmox.getLxcStatus(vmid);
+    const wasRunning = currentStatus.status === "running";
 
-      // Verify it's actually stopped
-      const status = await proxmox.getLxcStatus(vmid);
-      if (status.status !== "stopped") {
-        throw new Error("Instance did not stop properly");
+    // If instance is running, shut it down first
+    if (wasRunning) {
+      await proxmox.shutdownLxc(vmid);
+
+      // Wait for shutdown with timeout
+      let attempts = 0;
+      const maxAttempts = 15; // 30 seconds max
+      while (attempts < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        const status = await proxmox.getLxcStatus(vmid);
+        if (status.status === "stopped") {
+          break;
+        }
+        attempts++;
       }
 
-      // Apply config via agent
-      await setUnconfined(vmid, true);
-
-      // Start the instance
-      await proxmox.startLxc(vmid);
-
-      // Update database
-      await db.instance.update({
-        where: { vmid },
-        data: { dockerCompatibilityEnabled: true },
-      });
-    } else {
-      // Disable Docker compatibility: shutdown, remove config, start
-      await proxmox.shutdownLxc(vmid);
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait for shutdown
-
       // Verify it's actually stopped
-      const status = await proxmox.getLxcStatus(vmid);
-      if (status.status !== "stopped") {
-        throw new Error("Instance did not stop properly");
+      const finalStatus = await proxmox.getLxcStatus(vmid);
+      if (finalStatus.status !== "stopped") {
+        throw new Error("Instance did not stop properly after 30 seconds");
       }
-
-      // Remove config via agent
-      await setUnconfined(vmid, false);
-
-      // Start the instance
-      await proxmox.startLxc(vmid);
-
-      // Update database
-      await db.instance.update({
-        where: { vmid },
-        data: { dockerCompatibilityEnabled: false },
-      });
     }
+
+    // Apply or remove Docker compatibility configuration via agent
+    await setUnconfined(vmid, enabled);
+
+    // If instance was running, start it back up
+    if (wasRunning) {
+      await proxmox.startLxc(vmid);
+    }
+
+    // Update database
+    await db.instance.update({
+      where: { vmid },
+      data: { dockerCompatibilityEnabled: enabled },
+    });
 
     return NextResponse.json({
       success: true,
       dockerCompatibilityEnabled: enabled,
+      wasRestarted: wasRunning,
     });
   } catch (error) {
     console.error("Docker compatibility toggle error:", error);

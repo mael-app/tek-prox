@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isAxiosError } from "axios";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { getProxmoxClient } from "@/lib/proxmox";
-import { setUnconfined } from "@/lib/agent";
 import { allocateIp } from "@/lib/ip";
 import { getNextVmid } from "@/lib/utils/vmid";
-
+import { isAxiosError } from "axios";
 const createSchema = z.object({
   name: z.string().min(1).max(64),
   ramMb: z.number().int().min(128),
@@ -166,31 +164,6 @@ export async function POST(req: NextRequest) {
 
     await proxmox.waitForTask(upid);
 
-    // Patch config for Docker (unconfined)
-    try {
-      await setUnconfined(vmid);
-    } catch (agentErr) {
-      // Rollback: delete LXC from Proxmox, release IP and DB record
-      await db.ipAddress.updateMany({
-        where: { id: ipRecord.id },
-        data: { instanceId: null },
-      });
-      await db.instance.delete({ where: { id: instance.id } });
-      try { await proxmox.deleteLxc(vmid); } catch { /* best-effort */ }
-      console.error("Agent call failed:", agentErr);
-
-      const isTimeout = isAxiosError(agentErr) &&
-        (agentErr.code === "ECONNABORTED" || agentErr.code === "ECONNREFUSED" || !agentErr.response);
-
-      return NextResponse.json(
-        {
-          error: isTimeout
-            ? "L'agent Proxmox est inaccessible. Vérifiez que le service agent est démarré et que AGENT_BASE_URL est correctement configuré."
-            : `L'agent Proxmox a retourné une erreur : ${isAxiosError(agentErr) ? agentErr.message : String(agentErr)}`,
-        },
-        { status: 503 }
-      );
-    }
 
     // Update instance status
     await db.instance.update({
