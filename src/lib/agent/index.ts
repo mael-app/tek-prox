@@ -17,9 +17,9 @@ export async function injectSshKey(vmid: number, sshKey: string): Promise<void> 
   await agentClient.post("/agent/inject-ssh-key", { vmid, ssh_key: sshKey });
 }
 
-export async function checkAgentHealth(): Promise<boolean> {
+export async function checkAgentHealth(timeoutMs = 5000): Promise<boolean> {
   try {
-    const res = await agentClient.get("/agent/health");
+    const res = await agentClient.get("/agent/health", { timeout: timeoutMs });
     return res.data?.status === "ok";
   } catch {
     return false;

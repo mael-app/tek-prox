@@ -1,27 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
-type Status = "loading" | "connected" | "unreachable" | "node";
+type ApiStatus = "loading" | "connected" | "unreachable" | "node";
+type AgentStatus = "loading" | "connected" | "unreachable";
 
 export function ProxmoxStatusIndicator() {
-  const [status, setStatus] = useState<Status>("loading");
+  const [apiStatus, setApiStatus] = useState<ApiStatus>("loading");
+  const [agentStatus, setAgentStatus] = useState<AgentStatus>("loading");
+  const controllerRef = useRef<AbortController | null>(null);
 
   const check = async () => {
+    // Abort any in-flight request so stale responses never overwrite fresh ones
+    controllerRef.current?.abort();
     const controller = new AbortController();
+    controllerRef.current = controller;
+
     const timer = setTimeout(() => controller.abort(), 6000);
     try {
       const res = await fetch("/api/admin/proxmox-status", { signal: controller.signal });
+      if (controller.signal.aborted) return;
       if (!res.ok) {
-        setStatus("unreachable");
+        setApiStatus("unreachable");
+        setAgentStatus("unreachable");
         return;
       }
       const data = await res.json();
-      if (data.connected) setStatus("connected");
-      else setStatus(data.reason === "node" ? "node" : "unreachable");
+      if (controller.signal.aborted) return;
+      if (data.proxmox.connected) setApiStatus("connected");
+      else setApiStatus(data.proxmox.reason === "node" ? "node" : "unreachable");
+      setAgentStatus(data.agent.connected ? "connected" : "unreachable");
     } catch {
-      setStatus("unreachable");
+      // Ignore errors from aborted requests (e.g. Strict Mode cleanup)
+      if (controller.signal.aborted) return;
+      setApiStatus("unreachable");
+      setAgentStatus("unreachable");
     } finally {
       clearTimeout(timer);
     }
@@ -30,50 +44,79 @@ export function ProxmoxStatusIndicator() {
   useEffect(() => {
     check();
     const interval = setInterval(check, 30_000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      // Abort in-flight request on unmount to prevent state updates on dead component
+      controllerRef.current?.abort();
+    };
   }, []);
 
-  const isConnected = status === "connected";
-  const isLoading = status === "loading";
-  const isError = status === "unreachable" || status === "node";
+  return (
+    <div className="flex flex-col gap-0.5">
+      <StatusRow
+        label="Proxmox API"
+        badge={
+          apiStatus === "loading" ? null :
+          apiStatus === "connected" ? "OK" :
+          apiStatus === "node" ? "Bad node" :
+          "Unreachable"
+        }
+        state={
+          apiStatus === "loading" ? "loading" :
+          apiStatus === "connected" ? "ok" :
+          "error"
+        }
+      />
+      <StatusRow
+        label="Agent"
+        badge={
+          agentStatus === "loading" ? null :
+          agentStatus === "connected" ? "OK" :
+          "Unreachable"
+        }
+        state={
+          agentStatus === "loading" ? "loading" :
+          agentStatus === "connected" ? "ok" :
+          "error"
+        }
+      />
+    </div>
+  );
+}
 
-  const label =
-    status === "loading" ? "Proxmox API…" :
-    status === "connected" ? "Proxmox API" :
-    status === "node" ? "Proxmox API" :
-    "Proxmox API";
-
-  const badge =
-    status === "loading" ? null :
-    status === "connected" ? "OK" :
-    status === "node" ? "Bad node" :
-    "Unreachable";
-
+function StatusRow({
+  label,
+  badge,
+  state,
+}: {
+  label: string;
+  badge: string | null;
+  state: "loading" | "ok" | "error";
+}) {
   return (
     <div
       className={cn(
         "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium",
-        isLoading && "text-muted-foreground",
-        isConnected && "text-foreground",
-        isError && "text-destructive"
+        state === "loading" && "text-muted-foreground",
+        state === "ok" && "text-foreground",
+        state === "error" && "text-destructive"
       )}
     >
-      {/* Heartbeat dot */}
       <span className="relative flex h-2.5 w-2.5 shrink-0">
         <span
           className={cn(
             "animate-ping absolute inline-flex h-full w-full rounded-full opacity-75",
-            isLoading && "bg-muted-foreground",
-            isConnected && "bg-green-500",
-            isError && "bg-destructive"
+            state === "loading" && "bg-muted-foreground",
+            state === "ok" && "bg-green-500",
+            state === "error" && "bg-destructive"
           )}
         />
         <span
           className={cn(
             "relative inline-flex rounded-full h-2.5 w-2.5",
-            isLoading && "bg-muted-foreground",
-            isConnected && "bg-green-500",
-            isError && "bg-destructive"
+            state === "loading" && "bg-muted-foreground",
+            state === "ok" && "bg-green-500",
+            state === "error" && "bg-destructive"
           )}
         />
       </span>
@@ -84,7 +127,7 @@ export function ProxmoxStatusIndicator() {
         <span
           className={cn(
             "ml-auto text-xs font-normal",
-            isConnected ? "text-green-500" : "text-destructive"
+            state === "ok" ? "text-green-500" : "text-destructive"
           )}
         >
           {badge}

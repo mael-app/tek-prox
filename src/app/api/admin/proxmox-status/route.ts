@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/session";
 import { getProxmoxClient } from "@/lib/proxmox";
+import { checkAgentHealth } from "@/lib/agent";
 
 async function adminCheck() {
   const session = await requireSession();
@@ -14,6 +15,13 @@ export async function GET() {
   }
 
   const client = getProxmoxClient();
-  const { ok, reason } = await client.ping();
-  return NextResponse.json({ connected: ok, reason: reason ?? null });
+  const [{ ok, reason }, agentOk] = await Promise.all([
+    client.ping(),
+    checkAgentHealth(),
+  ]);
+
+  return NextResponse.json({
+    proxmox: { connected: ok, reason: reason ?? null },
+    agent: { connected: agentOk },
+  });
 }
