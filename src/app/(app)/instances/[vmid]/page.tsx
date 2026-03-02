@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { InstanceActions } from "@/components/instances/instance-actions";
+import { InstanceDockerCompatibility } from "@/components/instances/instance-docker-compatibility";
 
 type Params = { params: Promise<{ vmid: string }> };
 
@@ -17,7 +18,7 @@ export default async function InstanceDetailPage({ params }: Params) {
 
   const instance = await db.instance.findUnique({
     where: { vmid },
-    include: { ip: true },
+    include: { ip: true, group: true },
   });
 
   if (!instance) notFound();
@@ -66,6 +67,20 @@ export default async function InstanceDetailPage({ params }: Params) {
         </CardHeader>
         <CardContent>
           <InstanceActions vmid={vmid} status={instance.status} />
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Docker Compatibility</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <InstanceDockerCompatibility
+            vmid={vmid}
+            dockerCompatibilityEnabled={instance.dockerCompatibilityEnabled}
+            allowDockerCompatibility={instance.group.allowDockerCompatibility}
+            status={instance.status}
+          />
         </CardContent>
       </Card>
 

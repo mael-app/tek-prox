@@ -33,6 +33,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2 } from "lucide-react";
+import { GroupDockerCompatibilityPermission } from "./group-docker-compatibility";
 
 const schema = z.object({
   name: z.string().min(1),
@@ -57,6 +58,7 @@ interface Group {
   maxDiskGb: number;
   maxInstances: number;
   maxSwapMb: number;
+  allowDockerCompatibility: boolean;
   _count: { members: number; instances: number };
 }
 
@@ -214,6 +216,7 @@ export function AdminGroupsClient() {
               <TableHead>Limits</TableHead>
               <TableHead>Members</TableHead>
               <TableHead>Instances</TableHead>
+              <TableHead>Docker</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
@@ -235,6 +238,14 @@ export function AdminGroupsClient() {
                 <TableCell>{g._count.members}</TableCell>
                 <TableCell>{g._count.instances}</TableCell>
                 <TableCell>
+                  <GroupDockerCompatibilityPermission
+                    groupId={g.id}
+                    groupName={g.name}
+                    allowDockerCompatibility={g.allowDockerCompatibility}
+                    onSuccess={() => qc.invalidateQueries({ queryKey: ["admin-groups"] })}
+                  />
+                </TableCell>
+                <TableCell>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -248,7 +259,7 @@ export function AdminGroupsClient() {
             {groups.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="text-center text-muted-foreground py-8"
                 >
                   No groups yet

@@ -58,19 +58,20 @@ model User {
 }
 
 model Group {
-  id           String        @id @default(cuid())
-  name         String        @unique
-  description  String?
-  isAdmin      Boolean       @default(false)
-  maxRamMb     Int           @default(512)
-  maxCpuCores  Int           @default(1)
-  maxDiskGb    Int           @default(8)
-  maxInstances Int           @default(1)
-  maxSwapMb    Int           @default(0)
-  members      GroupMember[]
-  instances    Instance[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id                       String        @id @default(cuid())
+  name                     String        @unique
+  description              String?
+  isAdmin                  Boolean       @default(false)
+  maxRamMb                 Int           @default(512)
+  maxCpuCores              Int           @default(1)
+  maxDiskGb                Int           @default(8)
+  maxInstances             Int           @default(1)
+  maxSwapMb                Int           @default(0)
+  allowDockerCompatibility Boolean       @default(false)
+  members                  GroupMember[]
+  instances                Instance[]
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
 }
 
 model GroupMember {
@@ -85,23 +86,24 @@ model GroupMember {
 }
 
 model Instance {
-  id         String     @id @default(cuid())
-  vmid       Int        @unique
-  name       String
-  userId     String
-  groupId    String
-  ramMb      Int
-  cpuCores   Int
-  diskGb     Int
-  swapMb     Int        @default(0)
-  osTemplate String
-  node       String
-  status     String     @default("creating")
-  user       User       @relation(fields: [userId], references: [id])
-  group      Group      @relation(fields: [groupId], references: [id])
-  ip         IpAddress?
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id                         String     @id @default(cuid())
+  vmid                       Int        @unique
+  name                       String
+  userId                     String
+  groupId                    String
+  ramMb                      Int
+  cpuCores                   Int
+  diskGb                     Int
+  swapMb                     Int        @default(0)
+  osTemplate                 String
+  node                       String
+  status                     String     @default("creating")
+  dockerCompatibilityEnabled Boolean    @default(false)
+  user                       User       @relation(fields: [userId], references: [id])
+  group                      Group      @relation(fields: [groupId], references: [id])
+  ip                         IpAddress?
+  createdAt                  DateTime   @default(now())
+  updatedAt                  DateTime   @updatedAt
 }
 
 model Settings {

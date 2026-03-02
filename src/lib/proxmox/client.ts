@@ -70,6 +70,13 @@ class ProxmoxClient {
     return res.data.data as string;
   }
 
+  async shutdownLxc(vmid: number): Promise<string> {
+    const res = await this.client.post(
+      `/nodes/${this.node}/lxc/${vmid}/status/shutdown`
+    );
+    return res.data.data as string;
+  }
+
   async deleteLxc(vmid: number): Promise<string> {
     const res = await this.client.delete(
       `/nodes/${this.node}/lxc/${vmid}`

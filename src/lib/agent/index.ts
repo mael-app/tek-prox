@@ -9,8 +9,8 @@ const agentClient = axios.create({
   timeout: 30000,
 });
 
-export async function setUnconfined(vmid: number): Promise<void> {
-  await agentClient.post("/set-unconfined", { vmid });
+export async function setUnconfined(vmid: number, enable: boolean = true): Promise<void> {
+  await agentClient.post("/set-unconfined", { vmid, enable });
 }
 
 export async function injectSshKey(vmid: number, sshKey: string): Promise<void> {
