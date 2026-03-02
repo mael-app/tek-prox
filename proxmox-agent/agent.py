@@ -28,10 +28,11 @@ def pct_cmd(*args: str) -> list[str]:
     """Build a pct command, optionally wrapped with nsenter."""
     cmd = ["pct"] + list(args)
     if USE_NSENTER:
-        # Enter all host namespaces (mount, uts, ipc, net, pid) so that pct
-        # can reach Proxmox-specific mounts (/etc/pve, lxcfs, …).
-        # Requires: pid: "host" + privileged: true in docker-compose.
-        return ["nsenter", "-t", "1", "-m", "-u", "-i", "-n", "-p", "--"] + cmd
+        # Enter host mount + network namespaces so pct can reach Proxmox-specific
+        # mounts (/etc/pve, lxcfs, …). Skip -p/-u/-i: pid: "host" already shares
+        # the host PID namespace, and UTS/IPC are not needed.
+        # Requires: pid: "host" + privileged: true + security_opt apparmor:unconfined
+        return ["nsenter", "-t", "1", "-m", "-n", "--"] + cmd
     return cmd
 
 
