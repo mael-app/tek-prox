@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
+import { ThemeToggle } from "@/components/layout/theme-toggle";
 import Link from "next/link";
 
 export default async function AppLayout({
@@ -18,6 +19,9 @@ export default async function AppLayout({
     <div className="flex min-h-screen">
       <Sidebar />
       <div className="flex flex-col flex-1 overflow-auto">
+        <header className="flex items-center justify-end px-6 py-3 border-b shrink-0">
+          <ThemeToggle />
+        </header>
         <main className="flex-1 p-6">{children}</main>
         <footer className="py-6 flex items-center justify-center text-muted-foreground/50">
           <Link
