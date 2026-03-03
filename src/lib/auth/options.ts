@@ -8,16 +8,33 @@ const restrictedDomain = process.env.RESTRICT_MICROSOFT_DOMAIN;
 
 function buildAdapter() {
   const adapter = PrismaAdapter(db);
+
+  // Patch linkAccount: roll back the newly-created user if linking fails
   const originalLinkAccount = adapter.linkAccount!.bind(adapter);
   adapter.linkAccount = async (account: AdapterAccount) => {
     try {
       return await originalLinkAccount(account);
     } catch (error) {
-      // Roll back the user that was created just before this call
       await db.user.delete({ where: { id: account.userId } }).catch(() => {});
       throw error;
     }
   };
+
+  // Patch updateUser: the adapter calls this during OAuth sign-in to sync
+  // name/email/image from the provider. If the user was deleted between
+  // getUserByEmail and updateUser, swallow the P2025 error instead of
+  // crashing and putting the error message into the redirect URL.
+  const originalUpdateUser = adapter.updateUser!.bind(adapter);
+  adapter.updateUser = async (user) => {
+    try {
+      return await originalUpdateUser(user);
+    } catch (error: unknown) {
+      const code = (error as { code?: string })?.code;
+      if (code === "P2025") return user as never; // user deleted — ignore
+      throw error;
+    }
+  };
+
   return adapter;
 }
 
