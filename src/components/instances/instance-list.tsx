@@ -61,6 +61,7 @@ interface Instance {
   osTemplate: string;
   ip: IpAddress | null;
   group: { id: string; name: string };
+  user: { id: string; name: string | null; email: string | null };
   createdAt: string;
 }
 
@@ -78,13 +79,14 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-export function InstanceList() {
+export function InstanceList({ isAdmin }: { isAdmin?: boolean }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [loadingVmid, setLoadingVmid] = useState<number | null>(null);
   const [copiedVmid, setCopiedVmid] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState<string>("all");
+  const [userFilter, setUserFilter] = useState<string>("all");
   const [selectedVmids, setSelectedVmids] = useState<Set<number>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<number[] | null>(null);
 
@@ -172,10 +174,16 @@ export function InstanceList() {
     new Map(instances.map((i) => [i.group.id, i.group])).values()
   );
 
+  // Unique users for admin filter dropdown
+  const uniqueUsers = isAdmin
+    ? Array.from(new Map(instances.map((i) => [i.user.id, i.user])).values())
+    : [];
+
   // Filtered list
   const q = search.toLowerCase().trim();
   const filtered = instances.filter((i) => {
     if (groupFilter !== "all" && i.group.id !== groupFilter) return false;
+    if (isAdmin && userFilter !== "all" && i.user.id !== userFilter) return false;
     if (!q) return true;
     return (
       i.name.toLowerCase().includes(q) ||
@@ -224,6 +232,21 @@ export function InstanceList() {
               </button>
             )}
           </div>
+          {isAdmin && uniqueUsers.length > 1 && (
+            <Select value={userFilter} onValueChange={setUserFilter}>
+              <SelectTrigger className="w-44">
+                <SelectValue placeholder="All users" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All users</SelectItem>
+                {uniqueUsers.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.name ?? u.email ?? u.id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {uniqueGroups.length > 1 && (
             <Select value={groupFilter} onValueChange={setGroupFilter}>
               <SelectTrigger className="w-44">
@@ -267,6 +290,7 @@ export function InstanceList() {
               <TableHead>Status</TableHead>
               <TableHead>IP</TableHead>
               <TableHead>Group</TableHead>
+              {isAdmin && <TableHead>User</TableHead>}
               <TableHead>RAM</TableHead>
               <TableHead>CPU</TableHead>
               <TableHead>Disk</TableHead>
@@ -277,7 +301,7 @@ export function InstanceList() {
             {filtered.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={10}
+                  colSpan={isAdmin ? 11 : 10}
                   className="text-center text-muted-foreground py-8"
                 >
                   No instances match your search.
@@ -332,6 +356,11 @@ export function InstanceList() {
                 <TableCell className="text-sm text-muted-foreground">
                   {instance.group.name}
                 </TableCell>
+                {isAdmin && (
+                  <TableCell className="text-sm text-muted-foreground">
+                    {instance.user.name ?? instance.user.email ?? instance.user.id}
+                  </TableCell>
+                )}
                 <TableCell>{instance.ramMb} MB</TableCell>
                 <TableCell>{instance.cpuCores}</TableCell>
                 <TableCell>{instance.diskGb} GB</TableCell>

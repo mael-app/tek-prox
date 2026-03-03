@@ -15,15 +15,22 @@ const createSchema = z.object({
   swapMb: z.number().int().min(0),
   osTemplate: z.string().min(1),
   groupId: z.string().min(1),
+  targetUserId: z.string().optional(),
 });
 
 export async function GET() {
   const session = await requireSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const where = session.user.isAdmin ? {} : { userId: session.user.id };
+
   const instances = await db.instance.findMany({
-    where: { userId: session.user.id },
-    include: { ip: true, group: { select: { id: true, name: true } } },
+    where,
+    include: {
+      ip: true,
+      group: { select: { id: true, name: true } },
+      user: { select: { id: true, name: true, email: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -40,13 +47,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { name, ramMb, cpuCores, diskGb, swapMb, osTemplate, groupId } = parsed.data;
+  const { name, ramMb, cpuCores, diskGb, swapMb, osTemplate, groupId, targetUserId } = parsed.data;
 
-  // Load the requested group and verify the user is a member (unless admin)
+  // Determine the owner of the instance (admin may specify a target user)
+  let ownerId = session.user.id;
+  if (targetUserId && targetUserId !== session.user.id) {
+    if (!session.user.isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const targetUser = await db.user.findUnique({ where: { id: targetUserId } });
+    if (!targetUser) {
+      return NextResponse.json({ error: "Target user not found" }, { status: 404 });
+    }
+    const membership = await db.groupMember.findFirst({
+      where: { userId: targetUserId, groupId },
+    });
+    if (!membership) {
+      return NextResponse.json({ error: "Target user is not a member of this group" }, { status: 403 });
+    }
+    ownerId = targetUserId;
+  }
+
+  // Load the requested group and verify membership (unless admin creating for self)
   const group = await db.group.findUnique({
     where: { id: groupId },
     include: {
-      instances: { where: { userId: session.user.id } },
+      instances: { where: { userId: ownerId } },
     },
   });
 
@@ -122,7 +148,7 @@ export async function POST(req: NextRequest) {
     data: {
       vmid,
       name,
-      userId: session.user.id,
+      userId: ownerId,
       groupId: group.id,
       ramMb,
       cpuCores,
@@ -184,6 +210,7 @@ export async function POST(req: NextRequest) {
       ramMb,
       cpuCores,
       diskGb,
+      ...(ownerId !== session.user.id && { onBehalfOf: ownerId }),
     });
 
     return NextResponse.json(result, { status: 201 });

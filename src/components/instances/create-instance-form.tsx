@@ -42,6 +42,13 @@ interface Group {
   maxInstances: number;
 }
 
+interface AdminUser {
+  id: string;
+  name: string | null;
+  email: string | null;
+  groups: { group: Group }[];
+}
+
 const schema = z.object({
   name: z.string().min(1).max(64).regex(/^[a-z0-9-]+$/, {
     message: "Only lowercase letters, digits, and hyphens",
@@ -52,19 +59,28 @@ const schema = z.object({
   diskGb: z.coerce.number().int().min(1),
   swapMb: z.coerce.number().int().min(0),
   osTemplate: z.string().min(1),
+  targetUserId: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
 
 interface Props {
   groups: Group[];
+  adminUsers?: AdminUser[] | null;
 }
 
-export function CreateInstanceForm({ groups }: Props) {
+export function CreateInstanceForm({ groups, adminUsers }: Props) {
   const router = useRouter();
   const qc = useQueryClient();
-  const [selectedGroupId, setSelectedGroupId] = useState<string>(groups[0]?.id ?? "");
-  const selectedGroup = groups.find((g) => g.id === selectedGroupId) ?? groups[0];
+
+  // When admin selects a target user, effective groups come from that user's memberships
+  const [targetUserId, setTargetUserId] = useState<string>("");
+  const effectiveGroups: Group[] = targetUserId
+    ? (adminUsers?.find((u) => u.id === targetUserId)?.groups.map((gm) => gm.group) ?? [])
+    : groups;
+
+  const [selectedGroupId, setSelectedGroupId] = useState<string>(effectiveGroups[0]?.id ?? "");
+  const selectedGroup = effectiveGroups.find((g) => g.id === selectedGroupId) ?? effectiveGroups[0];
 
   const maxRamMb = selectedGroup?.maxRamMb ?? 512;
   const maxCpuCores = selectedGroup?.maxCpuCores ?? 1;
@@ -80,22 +96,46 @@ export function CreateInstanceForm({ groups }: Props) {
     resolver: zodResolver(schema) as Resolver<FormData>,
     defaultValues: {
       name: "",
-      groupId: groups[0]?.id ?? "",
+      groupId: effectiveGroups[0]?.id ?? "",
       ramMb: Math.min(512, maxRamMb),
       cpuCores: 1,
       diskGb: Math.min(8, maxDiskGb),
       swapMb: 0,
       osTemplate: "",
+      targetUserId: "",
     },
   });
 
   const isSubmitting = form.formState.isSubmitting;
 
+  function handleUserChange(userId: string) {
+    setTargetUserId(userId);
+    form.setValue("targetUserId", userId);
+
+    // Recompute groups for the selected user
+    const userGroups = userId
+      ? (adminUsers?.find((u) => u.id === userId)?.groups.map((gm) => gm.group) ?? [])
+      : groups;
+
+    const firstGroup = userGroups[0];
+    if (firstGroup) {
+      setSelectedGroupId(firstGroup.id);
+      form.setValue("groupId", firstGroup.id);
+      form.setValue("ramMb", Math.min(512, firstGroup.maxRamMb));
+      form.setValue("cpuCores", 1);
+      form.setValue("diskGb", Math.min(8, firstGroup.maxDiskGb));
+      form.setValue("swapMb", 0);
+    }
+  }
+
   async function onSubmit(data: FormData) {
+    const body: Record<string, unknown> = { ...data };
+    if (!body.targetUserId) delete body.targetUserId;
+
     const res = await fetch("/api/instances", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
@@ -113,8 +153,43 @@ export function CreateInstanceForm({ groups }: Props) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {/* Admin: target user selector */}
+        {adminUsers && (
+          <FormField
+            control={form.control}
+            name="targetUserId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>On behalf of</FormLabel>
+                <Select
+                  onValueChange={(val) => {
+                    field.onChange(val === "_self" ? "" : val);
+                    handleUserChange(val === "_self" ? "" : val);
+                  }}
+                  value={field.value || "_self"}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Myself (admin)" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="_self">Myself (admin)</SelectItem>
+                    {adminUsers.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.name ? `${u.name} — ${u.email}` : (u.email ?? u.id)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
+
         {/* Group selector */}
-        {groups.length > 1 && (
+        {effectiveGroups.length > 1 && (
           <FormField
             control={form.control}
             name="groupId"
@@ -125,8 +200,7 @@ export function CreateInstanceForm({ groups }: Props) {
                   onValueChange={(val) => {
                     field.onChange(val);
                     setSelectedGroupId(val);
-                    // reset resource fields to new group defaults
-                    const g = groups.find((g) => g.id === val);
+                    const g = effectiveGroups.find((g) => g.id === val);
                     if (g) {
                       form.setValue("ramMb", Math.min(512, g.maxRamMb));
                       form.setValue("cpuCores", 1);
@@ -142,7 +216,7 @@ export function CreateInstanceForm({ groups }: Props) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {groups.map((g) => (
+                    {effectiveGroups.map((g) => (
                       <SelectItem key={g.id} value={g.id}>
                         {g.name}
                       </SelectItem>
