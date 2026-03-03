@@ -45,7 +45,7 @@ export const authOptions: NextAuthOptions = {
       ) {
         return false;
       }
-      if (user.id) {
+      if (user.email) {
         const updates: Record<string, unknown> = { lastLoginAt: new Date() };
         // Sync name/image for pre-created users who sign in via OAuth for the first time
         if (!user.name && profile) {
@@ -54,7 +54,10 @@ export const authOptions: NextAuthOptions = {
           const image = p.picture ?? p.image;
           if (image) updates.image = image;
         }
-        await db.user.update({ where: { id: user.id }, data: updates });
+        // Use updateMany by email so it doesn't throw when user.id is the
+        // provider's account ID (not the DB UUID) on first OAuth sign-in for
+        // pre-created users.
+        await db.user.updateMany({ where: { email: user.email }, data: updates });
       }
       return true;
     },
