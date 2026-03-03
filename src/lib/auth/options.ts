@@ -35,7 +35,7 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, profile }) {
       if (
         restrictedDomain &&
         restrictedDomain !== "false" &&
@@ -43,6 +43,18 @@ export const authOptions: NextAuthOptions = {
         !user.email.endsWith(`@${restrictedDomain}`)
       ) {
         return false;
+      }
+      // Sync name/image for pre-created users who sign in via OAuth for the first time
+      if (user.id && !user.name && profile) {
+        const p = profile as Record<string, string | undefined>;
+        const name = p.name;
+        const image = p.picture ?? p.image;
+        if (name || image) {
+          await db.user.update({
+            where: { id: user.id },
+            data: { ...(name && { name }), ...(image && { image }) },
+          });
+        }
       }
       return true;
     },
