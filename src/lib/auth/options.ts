@@ -33,6 +33,7 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: "jwt",
+    maxAge: 2 * 24 * 60 * 60, // 2 days
   },
   callbacks: {
     async signIn({ user, profile }) {
@@ -44,38 +45,49 @@ export const authOptions: NextAuthOptions = {
       ) {
         return false;
       }
-      // Sync name/image for pre-created users who sign in via OAuth for the first time
-      if (user.id && !user.name && profile) {
-        const p = profile as Record<string, string | undefined>;
-        const name = p.name;
-        const image = p.picture ?? p.image;
-        if (name || image) {
-          await db.user.update({
-            where: { id: user.id },
-            data: { ...(name && { name }), ...(image && { image }) },
-          });
+      if (user.id) {
+        const updates: Record<string, unknown> = { lastLoginAt: new Date() };
+        // Sync name/image for pre-created users who sign in via OAuth for the first time
+        if (!user.name && profile) {
+          const p = profile as Record<string, string | undefined>;
+          if (p.name) updates.name = p.name;
+          const image = p.picture ?? p.image;
+          if (image) updates.image = image;
         }
+        await db.user.update({ where: { id: user.id }, data: updates });
       }
       return true;
     },
     async jwt({ token, user }) {
-      // Reload group membership from DB on every token refresh so that
-      // privilege changes (admin grant/revoke, group reassignment) take
-      // effect immediately without requiring a new login.
+      // Reload user data from DB on every token refresh so that privilege
+      // changes and force-logout take effect without requiring a new login.
       const userId = (user?.id ?? token.id) as string | undefined;
-      if (userId) {
-        token.id = userId;
-        const groups = await db.groupMember.findMany({
-          where: { userId },
-          include: { group: true },
-        });
-        token.isAdmin = groups.some((gm) => gm.group.isAdmin);
-        token.groupId = groups[0]?.groupId ?? null;
+      if (!userId) return token; // already invalidated
+
+      const dbUser = await db.user.findUnique({
+        where: { id: userId },
+        select: {
+          forcedLogoutAt: true,
+          groups: { include: { group: true } },
+        },
+      });
+
+      if (!dbUser) return { ...token, id: null }; // user deleted
+
+      // If a force-logout was issued after this token was created, invalidate it
+      if (dbUser.forcedLogoutAt && token.iat) {
+        if (dbUser.forcedLogoutAt.getTime() > (token.iat as number) * 1000) {
+          return { ...token, id: null };
+        }
       }
+
+      token.id = userId;
+      token.isAdmin = dbUser.groups.some((gm) => gm.group.isAdmin);
+      token.groupId = dbUser.groups[0]?.groupId ?? null;
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
+      if (session.user && token.id) {
         session.user.id = token.id as string;
         session.user.isAdmin = token.isAdmin as boolean;
         session.user.groupId = token.groupId as string | null;

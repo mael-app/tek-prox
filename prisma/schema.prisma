@@ -48,8 +48,10 @@ model User {
   email         String?       @unique
   emailVerified DateTime?
   image         String?
-  sshPublicKey  String?
-  accounts      Account[]
+  sshPublicKey   String?
+  lastLoginAt    DateTime?
+  forcedLogoutAt DateTime?
+  accounts       Account[]
   sessions      Session[]
   groups        GroupMember[]
   instances     Instance[]

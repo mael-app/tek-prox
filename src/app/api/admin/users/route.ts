@@ -15,6 +15,7 @@ export async function GET() {
       email: true,
       image: true,
       createdAt: true,
+      lastLoginAt: true,
       groups: {
         include: { group: true },
       },

@@ -42,7 +42,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { UserPlus, Search, Trash2 } from "lucide-react";
+import { UserPlus, Search, Trash2, LogOut } from "lucide-react";
+import { useSession, signOut } from "next-auth/react";
 
 interface Group {
   id: string;
@@ -54,12 +55,35 @@ interface UserEntry {
   name: string | null;
   email: string | null;
   createdAt: string;
+  lastLoginAt: string | null;
   groups: { group: Group }[];
   _count: { instances: number };
 }
 
+function compactDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "2-digit" });
+}
+
+function compactDateTime(iso: string): string {
+  const d = new Date(iso);
+  return (
+    d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "2-digit" }) +
+    " " +
+    d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+  );
+}
+
+function fullDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("fr-FR", {
+    dateStyle: "long",
+    timeStyle: "short",
+  });
+}
+
 export function AdminUsersClient() {
   const qc = useQueryClient();
+  const { data: session } = useSession();
   const [assignUser, setAssignUser] = useState<UserEntry | null>(null);
   const [selectedGroup, setSelectedGroup] = useState<string>("");
   const [search, setSearch] = useState("");
@@ -106,6 +130,24 @@ export function AdminUsersClient() {
       toast.success("User removed from group");
       qc.invalidateQueries({ queryKey: ["admin-users"] });
     },
+  });
+
+  const forceLogoutMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/admin/users/${id}/force-logout`, { method: "POST" }).then(
+        async (r) => {
+          if (!r.ok) throw new Error((await r.json()).error);
+          return id;
+        }
+      ),
+    onSuccess: (id) => {
+      if (id === session?.user.id) {
+        signOut({ callbackUrl: "/login" });
+      } else {
+        toast.success("User will be disconnected on their next request");
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const deleteMutation = useMutation({
@@ -199,6 +241,8 @@ export function AdminUsersClient() {
               <TableHead>Email</TableHead>
               <TableHead>Groups</TableHead>
               <TableHead>Instances</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead>Last login</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
@@ -242,6 +286,22 @@ export function AdminUsersClient() {
                   </div>
                 </TableCell>
                 <TableCell>{user._count.instances}</TableCell>
+                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                  <Tooltip>
+                    <TooltipTrigger>{compactDate(user.createdAt)}</TooltipTrigger>
+                    <TooltipContent>{fullDateTime(user.createdAt)}</TooltipContent>
+                  </Tooltip>
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                  {user.lastLoginAt ? (
+                    <Tooltip>
+                      <TooltipTrigger>{compactDateTime(user.lastLoginAt)}</TooltipTrigger>
+                      <TooltipContent>{fullDateTime(user.lastLoginAt)}</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    "—"
+                  )}
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
                     <Tooltip>
@@ -263,6 +323,20 @@ export function AdminUsersClient() {
                           variant="ghost"
                           size="sm"
                           className="cursor-pointer"
+                          disabled={forceLogoutMutation.isPending}
+                          onClick={() => forceLogoutMutation.mutate(user.id)}
+                        >
+                          <LogOut className="h-4 w-4 text-orange-500" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Force logout</TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="cursor-pointer"
                           onClick={() => setDeleteTarget([user.id])}
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -277,7 +351,7 @@ export function AdminUsersClient() {
             {filtered.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={8}
                   className="text-center text-muted-foreground py-8"
                 >
                   No users yet
