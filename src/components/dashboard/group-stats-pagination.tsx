@@ -77,12 +77,12 @@ export function GroupStatsPagination({ groups }: GroupStatsPaginationProps) {
                     const pct = max > 0 ? Math.round((used / max) * 100) : 0;
                     return (
                       <Card key={label}>
-                        <CardHeader className="flex flex-row items-center justify-between p-2 pb-1 sm:p-6 sm:pb-1">
-                          <CardTitle className="text-xs sm:text-sm font-medium">{label}</CardTitle>
-                          <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-muted-foreground" />
+                        <CardHeader className="flex flex-row items-center justify-between p-2 pb-1 sm:p-3 sm:pb-1">
+                          <CardTitle className="text-sm font-medium">{label}</CardTitle>
+                          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                         </CardHeader>
-                        <CardContent className="px-2 pt-0 pb-2 sm:px-6 sm:pt-0 sm:pb-2.5">
-                          <p className="text-sm sm:text-lg font-bold">
+                        <CardContent className="px-2 pt-0 pb-2 sm:px-3 sm:pt-0 sm:pb-2">
+                          <p className="text-sm font-bold">
                             {used}
                             {unit}
                             <span className="text-xs font-normal text-muted-foreground">
@@ -96,7 +96,7 @@ export function GroupStatsPagination({ groups }: GroupStatsPaginationProps) {
                               style={{ width: `${Math.min(pct, 100)}%` }}
                             />
                           </div>
-                          <p className="hidden sm:block text-xs text-muted-foreground mt-0.5">{pct}% used</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{pct}% used</p>
                         </CardContent>
                       </Card>
                     );
