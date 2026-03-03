@@ -302,7 +302,7 @@ export function AdminGroupsClient() {
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {(
                     [
                       ["maxRamMb", "Max RAM (MB)", 128],
@@ -389,7 +389,7 @@ export function AdminGroupsClient() {
                   </FormItem>
                 )}
               />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {(
                   [
                     ["maxRamMb", "Max RAM (MB)", 128],
@@ -448,7 +448,7 @@ export function AdminGroupsClient() {
         />
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

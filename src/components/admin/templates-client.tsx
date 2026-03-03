@@ -163,7 +163,7 @@ export function TemplatesClient() {
 
   return (
     <>
-      <div className="flex justify-end gap-2 mb-4">
+      <div className="flex flex-wrap justify-end gap-2 mb-4">
         <Button variant="outline" onClick={openImport}>
           <Download className="h-4 w-4 mr-2" />
           Import from Proxmox
@@ -295,7 +295,7 @@ export function TemplatesClient() {
         </DialogContent>
       </Dialog>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

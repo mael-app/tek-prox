@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/auth/options";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { MobileNav } from "@/components/layout/mobile-nav";
 import Link from "next/link";
 
 export default async function AppLayout({
@@ -18,11 +19,12 @@ export default async function AppLayout({
   return (
     <div className="flex h-screen">
       <Sidebar />
-      <div className="flex flex-col flex-1">
-        <header className="flex items-center justify-end px-6 py-3 border-b shrink-0">
+      <div className="flex flex-col flex-1 min-w-0">
+        <header className="flex items-center justify-between px-4 md:px-6 py-3 border-b shrink-0">
+          <MobileNav />
           <ThemeToggle />
         </header>
-        <main className="flex-1 p-6 overflow-auto">{children}</main>
+        <main className="flex-1 p-4 md:p-6 overflow-auto">{children}</main>
         <footer className="py-4 flex items-center justify-center text-muted-foreground/50 border-t shrink-0">
           <Link
             href="https://github.com/mael-app/tek-prox"

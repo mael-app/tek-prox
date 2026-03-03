@@ -96,7 +96,7 @@ export default async function InstanceDetailPage({ params }: Params) {
           <CardTitle>Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
             {details.map(({ label, value }) => (
               <div key={label}>
                 <dt className="text-xs text-muted-foreground uppercase tracking-wider">

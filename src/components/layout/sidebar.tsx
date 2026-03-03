@@ -40,7 +40,7 @@ export function Sidebar() {
   const { data: session } = useSession();
 
   return (
-    <aside className="flex flex-col w-64 min-h-screen border-r bg-sidebar px-3 py-4">
+    <aside className="hidden md:flex flex-col w-64 min-h-screen border-r bg-sidebar px-3 py-4">
       <div className="mb-6 px-2">
         <h1 className="text-xl font-bold tracking-tight">tek-prox</h1>
         <p className="text-xs text-muted-foreground mt-0.5">Proxmox LXC Manager</p>

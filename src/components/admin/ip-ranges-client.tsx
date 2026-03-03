@@ -201,7 +201,7 @@ export function AdminIpRangesClient() {
                         </FormItem>
                       )}
                     />
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <FormField
                         control={rangeForm.control}
                         name="startIp"
@@ -395,7 +395,7 @@ export function AdminIpRangesClient() {
                     </FormItem>
                   )}
                 />
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField
                     control={rangeForm.control}
                     name="startIp"
@@ -436,7 +436,7 @@ export function AdminIpRangesClient() {
         </DialogContent>
       </Dialog>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

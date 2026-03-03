@@ -205,7 +205,7 @@ export function InstanceList() {
     <>
       <div className="space-y-3">
         {/* Toolbar */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
             <input
@@ -251,6 +251,7 @@ export function InstanceList() {
           )}
         </div>
 
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -396,6 +397,7 @@ export function InstanceList() {
             ))}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       {/* Delete confirmation dialog */}
