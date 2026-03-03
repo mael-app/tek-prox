@@ -11,7 +11,8 @@ export type AuditAction =
   | "MEMBER_IMPORT"
   | "INSTANCE_CREATE"
   | "INSTANCE_DELETE"
-  | "DOCKER_TOGGLE";
+  | "DOCKER_TOGGLE"
+  | "SETTINGS_UPDATE";
 
 interface AuditActor {
   id: string;

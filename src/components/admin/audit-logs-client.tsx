@@ -31,7 +31,8 @@ type AuditAction =
   | "MEMBER_IMPORT"
   | "INSTANCE_CREATE"
   | "INSTANCE_DELETE"
-  | "DOCKER_TOGGLE";
+  | "DOCKER_TOGGLE"
+  | "SETTINGS_UPDATE";
 
 interface AuditLog {
   id: string;
@@ -62,6 +63,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   INSTANCE_CREATE: "Instance created",
   INSTANCE_DELETE: "Instance deleted",
   DOCKER_TOGGLE: "Docker toggled",
+  SETTINGS_UPDATE: "Settings updated",
 };
 
 const ACTION_VARIANTS: Record<
@@ -78,6 +80,7 @@ const ACTION_VARIANTS: Record<
   INSTANCE_CREATE: "default",
   INSTANCE_DELETE: "destructive",
   DOCKER_TOGGLE: "outline",
+  SETTINGS_UPDATE: "secondary",
 };
 
 function actionLabel(action: string): string {
@@ -124,6 +127,14 @@ function formatMeta(action: string, metaRaw: string | null): string {
       return `vmid ${meta.vmid} "${meta.name}"${meta.deletedByAdmin ? " (by admin)" : ""}`;
     case "DOCKER_TOGGLE":
       return `vmid ${meta.vmid} "${meta.name}" → ${meta.enabled ? "enabled" : "disabled"}${meta.toggledByAdmin ? " (by admin)" : ""}`;
+    case "SETTINGS_UPDATE": {
+      const parts: string[] = [];
+      if ((meta.storage as { from: string; to: string })?.from !== (meta.storage as { from: string; to: string })?.to)
+        parts.push(`storage: ${(meta.storage as { from: string; to: string }).from} → ${(meta.storage as { from: string; to: string }).to}`);
+      if ((meta.bridge as { from: string; to: string })?.from !== (meta.bridge as { from: string; to: string })?.to)
+        parts.push(`bridge: ${(meta.bridge as { from: string; to: string }).from} → ${(meta.bridge as { from: string; to: string }).to}`);
+      return parts.length ? parts.join(", ") : "No changes";
+    }
     default:
       return JSON.stringify(meta);
   }
@@ -151,6 +162,7 @@ const ALL_ACTIONS: AuditAction[] = [
   "INSTANCE_CREATE",
   "INSTANCE_DELETE",
   "DOCKER_TOGGLE",
+  "SETTINGS_UPDATE",
 ];
 
 /** Returns the page numbers to display, inserting `null` for ellipsis gaps. */
