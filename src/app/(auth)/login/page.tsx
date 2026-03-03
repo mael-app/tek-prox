@@ -19,7 +19,11 @@ export default async function LoginPage({
   searchParams: Promise<{ error?: string; callbackUrl?: string }>;
 }) {
   const session = await getServerSession(authOptions);
-  if (session) redirect("/dashboard");
+  // Only redirect when the session is fully valid (id present).
+  // An invalidated token (force-logout / deleted user) still returns a non-null
+  // session object from getServerSession, but without user.id — in that case we
+  // must stay on the login page and let the cookie expire / be cleared.
+  if (session?.user?.id) redirect("/dashboard");
 
   const { error } = await searchParams;
   const errorMessage = error
