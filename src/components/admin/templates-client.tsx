@@ -163,18 +163,20 @@ export function TemplatesClient() {
 
   return (
     <>
-      <div className="flex flex-wrap justify-end gap-2 mb-4">
-        <Button variant="outline" onClick={openImport}>
-          <Download className="h-4 w-4 mr-2" />
-          Import from Proxmox
-        </Button>
-        <Dialog open={addOpen} onOpenChange={setAddOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Manually
-            </Button>
-          </DialogTrigger>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <h1 className="text-2xl font-bold">OS Templates</h1>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={openImport}>
+            <Download className="h-4 w-4 mr-2" />
+            Import from Proxmox
+          </Button>
+          <Dialog open={addOpen} onOpenChange={setAddOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Manually
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add OS Template</DialogTitle>
@@ -227,7 +229,11 @@ export function TemplatesClient() {
             </Form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+      <p className="text-muted-foreground mb-6">
+        Manage the OS templates available when creating new instances.
+      </p>
 
       {/* Import dialog */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>

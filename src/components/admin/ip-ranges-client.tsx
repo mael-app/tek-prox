@@ -147,7 +147,8 @@ export function AdminIpRangesClient() {
 
   return (
     <>
-      <div className="flex justify-end mb-4">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold">IP Ranges</h1>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button>
