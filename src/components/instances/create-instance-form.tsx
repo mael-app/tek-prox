@@ -94,13 +94,8 @@ export function CreateInstanceForm({ groups, adminUsers }: Props) {
   const [targetUserId, setTargetUserId] = useState<string>("");
   const [userPopoverOpen, setUserPopoverOpen] = useState(false);
 
-  // Admin always works with all groups (groups prop = all groups for admin).
-  // Regular users see their own groups, or the selected target user's groups.
-  const effectiveGroups: Group[] = isAdmin
-    ? groups
-    : (targetUserId
-        ? (adminUsers?.find((u) => u.id === targetUserId)?.groups.map((gm) => gm.group) ?? [])
-        : groups);
+  // groups prop is always the relevant list: all groups for admins, own groups for regular users.
+  const effectiveGroups: Group[] = groups;
 
   const [selectedGroupId, setSelectedGroupId] = useState<string>(effectiveGroups[0]?.id ?? "");
   const selectedGroup = effectiveGroups.find((g) => g.id === selectedGroupId) ?? effectiveGroups[0];
@@ -154,25 +149,7 @@ export function CreateInstanceForm({ groups, adminUsers }: Props) {
   function handleUserChange(userId: string) {
     setTargetUserId(userId);
     form.setValue("targetUserId", userId);
-
-    // Admin always works with all groups — changing the target user doesn't change
-    // the group list, so we leave the group selection as-is.
-    if (isAdmin) return;
-
-    // Non-admin path: recompute groups for the selected user
-    const userGroups = userId
-      ? (adminUsers?.find((u) => u.id === userId)?.groups.map((gm) => gm.group) ?? [])
-      : groups;
-
-    const firstGroup = userGroups[0];
-    if (firstGroup) {
-      setSelectedGroupId(firstGroup.id);
-      form.setValue("groupId", firstGroup.id);
-      form.setValue("ramMb", Math.min(512, firstGroup.maxRamMb));
-      form.setValue("cpuCores", 1);
-      form.setValue("diskGb", Math.min(8, firstGroup.maxDiskGb));
-      form.setValue("swapMb", 0);
-    }
+    // The group list doesn't change when switching target user (admin always sees all groups).
   }
 
   async function onSubmit(data: FormData) {
