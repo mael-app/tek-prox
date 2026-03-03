@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ─── Stage 1: All deps (dev + prod) with native build tools ─────────────────
-FROM node:22-slim AS deps
+FROM node:24-slim AS deps
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 make g++ \
@@ -10,7 +10,7 @@ COPY package*.json ./
 RUN npm ci
 
 # ─── Stage 2: Build ──────────────────────────────────────────────────────────
-FROM node:22-slim AS builder
+FROM node:24-slim AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -21,7 +21,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # ─── Stage 3: Production deps only (prisma CLI + runtime, no TS/tailwind/…) ─
-FROM node:22-slim AS prod-deps
+FROM node:24-slim AS prod-deps
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
       python3 make g++ \
@@ -30,7 +30,7 @@ COPY package*.json ./
 RUN npm ci --omit=dev
 
 # ─── Stage 4: Runtime ────────────────────────────────────────────────────────
-FROM node:22-slim AS runner
+FROM node:24-slim AS runner
 WORKDIR /app
 
 # Baked-in at build time: docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD)
