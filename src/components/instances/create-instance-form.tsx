@@ -24,7 +24,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Loader2, ChevronsUpDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface OsTemplate {
   id: string;
@@ -75,6 +89,7 @@ export function CreateInstanceForm({ groups, adminUsers }: Props) {
 
   // When admin selects a target user, effective groups come from that user's memberships
   const [targetUserId, setTargetUserId] = useState<string>("");
+  const [userPopoverOpen, setUserPopoverOpen] = useState(false);
   const effectiveGroups: Group[] = targetUserId
     ? (adminUsers?.find((u) => u.id === targetUserId)?.groups.map((gm) => gm.group) ?? [])
     : groups;
@@ -153,38 +168,81 @@ export function CreateInstanceForm({ groups, adminUsers }: Props) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {/* Admin: target user selector */}
+        {/* Admin: target user selector with search */}
         {adminUsers && (
           <FormField
             control={form.control}
             name="targetUserId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>On behalf of</FormLabel>
-                <Select
-                  onValueChange={(val) => {
-                    field.onChange(val === "_self" ? "" : val);
-                    handleUserChange(val === "_self" ? "" : val);
-                  }}
-                  value={field.value || "_self"}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Myself (admin)" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="_self">Myself (admin)</SelectItem>
-                    {adminUsers.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.name ? `${u.name} — ${u.email}` : (u.email ?? u.id)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
+            render={({ field }) => {
+              const selectedUser = adminUsers.find((u) => u.id === field.value);
+              const displayLabel = selectedUser
+                ? (selectedUser.name
+                    ? `${selectedUser.name} — ${selectedUser.email}`
+                    : (selectedUser.email ?? selectedUser.id))
+                : "Myself (admin)";
+
+              return (
+                <FormItem>
+                  <FormLabel>On behalf of</FormLabel>
+                  <Popover open={userPopoverOpen} onOpenChange={setUserPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className={cn(
+                            "w-full justify-between font-normal",
+                            !field.value && "text-muted-foreground"
+                          )}
+                        >
+                          <span className="truncate">{displayLabel}</span>
+                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search user..." />
+                        <CommandList>
+                          <CommandEmpty>No user found.</CommandEmpty>
+                          <CommandGroup>
+                            <CommandItem
+                              value="_self"
+                              onSelect={() => {
+                                field.onChange("");
+                                handleUserChange("");
+                                setUserPopoverOpen(false);
+                              }}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", !field.value ? "opacity-100" : "opacity-0")} />
+                              Myself (admin)
+                            </CommandItem>
+                            {adminUsers.map((u) => {
+                              const label = u.name ? `${u.name} — ${u.email}` : (u.email ?? u.id);
+                              return (
+                                <CommandItem
+                                  key={u.id}
+                                  value={label}
+                                  onSelect={() => {
+                                    field.onChange(u.id);
+                                    handleUserChange(u.id);
+                                    setUserPopoverOpen(false);
+                                  }}
+                                >
+                                  <Check className={cn("mr-2 h-4 w-4", field.value === u.id ? "opacity-100" : "opacity-0")} />
+                                  {label}
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
         )}
 
