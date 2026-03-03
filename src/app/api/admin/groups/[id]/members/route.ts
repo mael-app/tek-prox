@@ -25,8 +25,22 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
+  const { userId } = parsed.data;
+
+  // Check if member already exists
+  const existing = await db.groupMember.findUnique({
+    where: { userId_groupId: { userId, groupId } },
+  });
+
+  if (existing) {
+    return NextResponse.json(
+      { error: "User is already a member of this group" },
+      { status: 409 }
+    );
+  }
+
   const member = await db.groupMember.create({
-    data: { userId: parsed.data.userId, groupId },
+    data: { userId, groupId },
     include: { user: true },
   });
 
