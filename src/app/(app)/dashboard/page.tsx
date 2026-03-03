@@ -1,12 +1,13 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { GroupStatsPagination } from "@/components/dashboard/group-stats-pagination";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
-  if (!session) return null;
+  if (!session?.user?.id) redirect("/login");
 
   // Admins see all groups; regular users only see their own memberships
   const memberships = session.user.isAdmin

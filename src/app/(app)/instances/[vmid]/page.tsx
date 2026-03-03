@@ -11,7 +11,7 @@ type Params = { params: Promise<{ vmid: string }> };
 
 export default async function InstanceDetailPage({ params }: Params) {
   const session = await getServerSession(authOptions);
-  if (!session) redirect("/login");
+  if (!session?.user?.id) redirect("/login");
 
   const { vmid: vmidStr } = await params;
   const vmid = parseInt(vmidStr, 10);

@@ -18,7 +18,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <SessionProvider>
+      <SessionProvider refetchInterval={30} refetchOnWindowFocus={true}>
         <QueryClientProvider client={queryClient}>
           <TooltipProvider delayDuration={300}>
             {children}

@@ -7,7 +7,7 @@ import { CreateInstanceForm } from "@/components/instances/create-instance-form"
 
 export default async function NewInstancePage() {
   const session = await getServerSession(authOptions);
-  if (!session) redirect("/login");
+  if (!session?.user?.id) redirect("/login");
 
   // Admins see all groups; regular users only see their own memberships
   const groups = session.user.isAdmin
