@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { InstanceActions } from "@/components/instances/instance-actions";
 import { InstanceDockerCompatibility } from "@/components/instances/instance-docker-compatibility";
+import { CopyableValue } from "@/components/ui/copy-button";
 
 type Params = { params: Promise<{ vmid: string }> };
 
@@ -33,8 +34,8 @@ export default async function InstanceDetailPage({ params }: Params) {
     { label: "VMID", value: instance.vmid },
     { label: "Hostname", value: instance.name },
     { label: "Status", value: instance.status },
-    { label: "IP Address", value: instance.ip?.address ?? "—" },
-    { label: "Gateway", value: instance.ip?.gateway ?? "—" },
+    { label: "IP Address", value: instance.ip?.address ?? "—", copyValue: instance.ip?.address ?? null },
+    { label: "Gateway", value: instance.ip?.gateway ?? "—", copyValue: instance.ip?.gateway ?? null },
     { label: "OS Template", value: instance.osTemplate },
     { label: "RAM", value: `${instance.ramMb} MB` },
     { label: "CPU Cores", value: instance.cpuCores },
@@ -97,13 +98,17 @@ export default async function InstanceDetailPage({ params }: Params) {
         </CardHeader>
         <CardContent>
           <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-            {details.map(({ label, value }) => (
+            {details.map(({ label, value, copyValue }) => (
               <div key={label}>
                 <dt className="text-xs text-muted-foreground uppercase tracking-wider">
                   {label}
                 </dt>
-                <dd className="font-medium font-mono text-sm mt-0.5">
-                  {String(value)}
+                <dd className="flex items-center font-medium font-mono text-sm mt-0.5">
+                  {copyValue ? (
+                    <CopyableValue value={copyValue} label={`Copy ${label}`} />
+                  ) : (
+                    String(value)
+                  )}
                 </dd>
               </div>
             ))}
