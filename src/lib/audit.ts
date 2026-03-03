@@ -6,6 +6,7 @@ export type AuditAction =
   | "GROUP_DELETE"
   | "USER_DELETE"
   | "IP_RANGE_CREATE"
+  | "IP_RANGE_UPDATE"
   | "IP_RANGE_DELETE"
   | "MEMBER_IMPORT"
   | "INSTANCE_CREATE"
