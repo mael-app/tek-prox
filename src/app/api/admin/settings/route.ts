@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireSession } from "@/lib/auth/session";
+import { requireAdmin } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 
 const updateSchema = z.object({
@@ -8,14 +8,8 @@ const updateSchema = z.object({
   bridge: z.string().min(1),
 });
 
-async function adminCheck() {
-  const session = await requireSession();
-  if (!session?.user.isAdmin) return null;
-  return session;
-}
-
 export async function GET() {
-  if (!(await adminCheck())) {
+  if (!(await requireAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -29,7 +23,7 @@ export async function GET() {
 }
 
 export async function PUT(req: NextRequest) {
-  if (!(await adminCheck())) {
+  if (!(await requireAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

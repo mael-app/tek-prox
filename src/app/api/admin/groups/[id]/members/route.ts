@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireSession } from "@/lib/auth/session";
+import { requireAdmin } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 
 type Params = { params: Promise<{ id: string }> };
 
 const memberSchema = z.object({ userId: z.string().min(1) });
 
-async function adminCheck() {
-  const session = await requireSession();
-  if (!session?.user.isAdmin) return null;
-  return session;
-}
-
 export async function POST(req: NextRequest, { params }: Params) {
-  if (!(await adminCheck())) {
+  if (!(await requireAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -48,7 +42,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(req: NextRequest, { params }: Params) {
-  if (!(await adminCheck())) {
+  if (!(await requireAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

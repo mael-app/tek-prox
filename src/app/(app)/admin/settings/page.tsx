@@ -1,12 +1,7 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/options";
-import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SettingsForm } from "@/components/admin/settings-form";
 
-export default async function AdminSettingsPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user.isAdmin) redirect("/dashboard");
+export default function AdminSettingsPage() {
 
   return (
     <div className="max-w-lg">

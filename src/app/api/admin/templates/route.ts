@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireSession } from "@/lib/auth/session";
+import { requireSession, requireAdmin } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 
 const createSchema = z.object({
   name: z.string().min(1),
   template: z.string().min(1),
 });
-
-async function adminCheck() {
-  const session = await requireSession();
-  if (!session?.user.isAdmin) return null;
-  return session;
-}
 
 export async function GET() {
   // Accessible to all authenticated users (needed for instance creation form)
@@ -29,7 +23,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  if (!(await adminCheck())) {
+  if (!(await requireAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

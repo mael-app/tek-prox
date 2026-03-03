@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import { isAxiosError } from "axios";
-import { requireSession } from "@/lib/auth/session";
+import { requireAdmin } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { getProxmoxClient } from "@/lib/proxmox";
 
 export async function GET() {
-  const session = await requireSession();
-  if (!session?.user.isAdmin) {
+  if (!(await requireAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

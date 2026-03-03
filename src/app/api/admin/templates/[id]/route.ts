@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireSession } from "@/lib/auth/session";
+import { requireAdmin } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 
 type Params = { params: Promise<{ id: string }> };
 
-async function adminCheck() {
-  const session = await requireSession();
-  if (!session?.user.isAdmin) return null;
-  return session;
-}
-
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  if (!(await adminCheck())) {
+  if (!(await requireAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

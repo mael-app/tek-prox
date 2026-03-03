@@ -1,11 +1,6 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/options";
-import { redirect } from "next/navigation";
 import { AuditLogsClient } from "@/components/admin/audit-logs-client";
 
-export default async function AuditLogsPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user.isAdmin) redirect("/dashboard");
+export default function AuditLogsPage() {
 
   return (
     <div>

@@ -1,11 +1,6 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/options";
-import { redirect } from "next/navigation";
 import { TemplatesClient } from "@/components/admin/templates-client";
 
-export default async function AdminTemplatesPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user.isAdmin) redirect("/dashboard");
+export default function AdminTemplatesPage() {
 
   return (
     <div>

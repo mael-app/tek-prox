@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireSession } from "@/lib/auth/session";
+import { requireAdmin } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 
@@ -16,8 +16,8 @@ const groupSchema = z.object({
 });
 
 export async function GET() {
-  const session = await requireSession();
-  if (!session?.user.isAdmin) {
+  const session = await requireAdmin();
+  if (!session) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -32,8 +32,8 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await requireSession();
-  if (!session?.user.isAdmin) {
+  const session = await requireAdmin();
+  if (!session) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

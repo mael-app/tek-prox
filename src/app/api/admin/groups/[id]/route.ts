@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { requireSession } from "@/lib/auth/session";
+import { requireAdmin } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { audit } from "@/lib/audit";
 
@@ -17,14 +17,8 @@ const updateSchema = z.object({
 
 type Params = { params: Promise<{ id: string }> };
 
-async function adminCheck() {
-  const session = await requireSession();
-  if (!session?.user.isAdmin) return null;
-  return session;
-}
-
 export async function GET(_req: NextRequest, { params }: Params) {
-  if (!(await adminCheck())) {
+  if (!(await requireAdmin())) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -43,7 +37,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 }
 
 export async function PUT(req: NextRequest, { params }: Params) {
-  const session = await adminCheck();
+  const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
@@ -65,7 +59,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
 export const PATCH = PUT;
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const session = await adminCheck();
+  const session = await requireAdmin();
   if (!session) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
