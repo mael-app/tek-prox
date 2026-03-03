@@ -37,7 +37,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Loader2, ChevronsUpDown, Check } from "lucide-react";
+import { Loader2, ChevronsUpDown, Check, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface OsTemplate {
@@ -54,6 +54,8 @@ interface Group {
   maxDiskGb: number;
   maxSwapMb: number;
   maxInstances: number;
+  /** Current number of instances in the group (provided for admins to compute quota warnings) */
+  instanceCount?: number;
 }
 
 interface AdminUser {
@@ -87,12 +89,18 @@ export function CreateInstanceForm({ groups, adminUsers }: Props) {
   const router = useRouter();
   const qc = useQueryClient();
 
-  // When admin selects a target user, effective groups come from that user's memberships
+  const isAdmin = adminUsers != null;
+
   const [targetUserId, setTargetUserId] = useState<string>("");
   const [userPopoverOpen, setUserPopoverOpen] = useState(false);
-  const effectiveGroups: Group[] = targetUserId
-    ? (adminUsers?.find((u) => u.id === targetUserId)?.groups.map((gm) => gm.group) ?? [])
-    : groups;
+
+  // Admin always works with all groups (groups prop = all groups for admin).
+  // Regular users see their own groups, or the selected target user's groups.
+  const effectiveGroups: Group[] = isAdmin
+    ? groups
+    : (targetUserId
+        ? (adminUsers?.find((u) => u.id === targetUserId)?.groups.map((gm) => gm.group) ?? [])
+        : groups);
 
   const [selectedGroupId, setSelectedGroupId] = useState<string>(effectiveGroups[0]?.id ?? "");
   const selectedGroup = effectiveGroups.find((g) => g.id === selectedGroupId) ?? effectiveGroups[0];
@@ -123,11 +131,35 @@ export function CreateInstanceForm({ groups, adminUsers }: Props) {
 
   const isSubmitting = form.formState.isSubmitting;
 
+  // Quota warnings for admins — computed from live form values (must be after useForm)
+  const watchedRam = form.watch("ramMb");
+  const watchedCpu = form.watch("cpuCores");
+  const watchedDisk = form.watch("diskGb");
+  const watchedSwap = form.watch("swapMb");
+
+  const quotaWarnings: string[] = [];
+  if (isAdmin && selectedGroup) {
+    if ((selectedGroup.instanceCount ?? 0) >= selectedGroup.maxInstances)
+      quotaWarnings.push(`Instances: groupe déjà à ${selectedGroup.instanceCount ?? 0}/${selectedGroup.maxInstances}`);
+    if (watchedRam > maxRamMb)
+      quotaWarnings.push(`RAM: ${watchedRam} MB dépasse la limite de ${maxRamMb} MB`);
+    if (watchedCpu > maxCpuCores)
+      quotaWarnings.push(`CPU: ${watchedCpu} cœurs dépasse la limite de ${maxCpuCores}`);
+    if (watchedDisk > maxDiskGb)
+      quotaWarnings.push(`Disque: ${watchedDisk} GB dépasse la limite de ${maxDiskGb} GB`);
+    if (maxSwapMb > 0 && watchedSwap > maxSwapMb)
+      quotaWarnings.push(`Swap: ${watchedSwap} MB dépasse la limite de ${maxSwapMb} MB`);
+  }
+
   function handleUserChange(userId: string) {
     setTargetUserId(userId);
     form.setValue("targetUserId", userId);
 
-    // Recompute groups for the selected user
+    // Admin always works with all groups — changing the target user doesn't change
+    // the group list, so we leave the group selection as-is.
+    if (isAdmin) return;
+
+    // Non-admin path: recompute groups for the selected user
     const userGroups = userId
       ? (adminUsers?.find((u) => u.id === userId)?.groups.map((gm) => gm.group) ?? [])
       : groups;
@@ -246,8 +278,8 @@ export function CreateInstanceForm({ groups, adminUsers }: Props) {
           />
         )}
 
-        {/* Group selector */}
-        {effectiveGroups.length > 1 && (
+        {/* Group selector — always visible for admins, otherwise only when there are multiple choices */}
+        {(isAdmin || effectiveGroups.length > 1) && (
           <FormField
             control={form.control}
             name="groupId"
@@ -292,6 +324,19 @@ export function CreateInstanceForm({ groups, adminUsers }: Props) {
             Limits: {maxRamMb} MB RAM · {maxCpuCores} CPU · {maxDiskGb} GB disk · {selectedGroup.maxInstances}× instances
             {maxSwapMb > 0 ? ` · ${maxSwapMb} MB swap` : ""}
           </p>
+        )}
+
+        {/* Quota override warning (admins only) */}
+        {isAdmin && quotaWarnings.length > 0 && (
+          <div className="rounded-md border border-yellow-400 bg-yellow-50 dark:bg-yellow-950/20 px-3 py-2 text-sm text-yellow-800 dark:text-yellow-300">
+            <p className="flex items-center gap-1.5 font-semibold mb-1">
+              <TriangleAlert className="h-4 w-4 shrink-0" />
+              Dépassement de quota (admin)
+            </p>
+            <ul className="list-disc pl-5 space-y-0.5">
+              {quotaWarnings.map((w) => <li key={w}>{w}</li>)}
+            </ul>
+          </div>
         )}
 
         <FormField
@@ -345,7 +390,7 @@ export function CreateInstanceForm({ groups, adminUsers }: Props) {
               <FormItem>
                 <FormLabel>RAM (MB)</FormLabel>
                 <FormControl>
-                  <Input type="number" min={128} max={maxRamMb} {...field} />
+                  <Input type="number" min={128} max={isAdmin ? undefined : maxRamMb} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -359,7 +404,7 @@ export function CreateInstanceForm({ groups, adminUsers }: Props) {
               <FormItem>
                 <FormLabel>CPU Cores</FormLabel>
                 <FormControl>
-                  <Input type="number" min={1} max={maxCpuCores} {...field} />
+                  <Input type="number" min={1} max={isAdmin ? undefined : maxCpuCores} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -373,7 +418,7 @@ export function CreateInstanceForm({ groups, adminUsers }: Props) {
               <FormItem>
                 <FormLabel>Disk (GB)</FormLabel>
                 <FormControl>
-                  <Input type="number" min={1} max={maxDiskGb} {...field} />
+                  <Input type="number" min={1} max={isAdmin ? undefined : maxDiskGb} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -381,7 +426,7 @@ export function CreateInstanceForm({ groups, adminUsers }: Props) {
           />
         </div>
 
-        {maxSwapMb > 0 && (
+        {(isAdmin || maxSwapMb > 0) && (
           <FormField
             control={form.control}
             name="swapMb"
@@ -389,7 +434,7 @@ export function CreateInstanceForm({ groups, adminUsers }: Props) {
               <FormItem>
                 <FormLabel>Swap (MB)</FormLabel>
                 <FormControl>
-                  <Input type="number" min={0} max={maxSwapMb} {...field} />
+                  <Input type="number" min={0} max={isAdmin ? undefined : maxSwapMb} {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

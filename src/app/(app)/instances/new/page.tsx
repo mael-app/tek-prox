@@ -9,9 +9,15 @@ export default async function NewInstancePage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login");
 
-  // Admins see all groups; regular users only see their own memberships
+  // Admins see all groups; regular users only see their own memberships.
+  // For admins, include the current instance count per group to power quota warnings in the form.
   const groups = session.user.isAdmin
-    ? await db.group.findMany({ orderBy: { name: "asc" } })
+    ? await db.group
+        .findMany({
+          orderBy: { name: "asc" },
+          include: { _count: { select: { instances: true } } },
+        })
+        .then((gs) => gs.map(({ _count, ...g }) => ({ ...g, instanceCount: _count.instances })))
     : await db.groupMember
         .findMany({
           where: { userId: session.user.id },
@@ -25,7 +31,9 @@ export default async function NewInstancePage() {
       <div>
         <h1 className="text-2xl font-bold mb-4">New Instance</h1>
         <p className="text-muted-foreground">
-          You are not assigned to a group. Contact an admin.
+          {session.user.isAdmin
+            ? "No groups exist yet. Create a group first."
+            : "You are not assigned to a group. Contact an admin."}
         </p>
       </div>
     );

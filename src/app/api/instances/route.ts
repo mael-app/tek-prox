@@ -60,12 +60,7 @@ export async function POST(req: NextRequest) {
     if (!targetUser) {
       return NextResponse.json({ error: "Target user not found" }, { status: 404 });
     }
-    const membership = await db.groupMember.findFirst({
-      where: { userId: targetUserId, groupId },
-    });
-    if (!membership) {
-      return NextResponse.json({ error: "Target user is not a member of this group" }, { status: 403 });
-    }
+    // Admin can create an instance for any user, regardless of group membership.
     ownerId = targetUserId;
   }
 
@@ -89,37 +84,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "You are not a member of this group" }, { status: 403 });
     }
   }
-  const currentInstances = group.instances.length;
+  // Quota checks are enforced for regular users only.
+  // Admins receive warnings in the UI and are allowed to exceed limits.
+  if (!session.user.isAdmin) {
+    const currentInstances = group.instances.length;
 
-  if (currentInstances >= group.maxInstances) {
-    return NextResponse.json(
-      { error: `Instance limit reached (${group.maxInstances})` },
-      { status: 403 }
-    );
-  }
-  if (ramMb > group.maxRamMb) {
-    return NextResponse.json(
-      { error: `RAM exceeds group limit (${group.maxRamMb} MB)` },
-      { status: 403 }
-    );
-  }
-  if (cpuCores > group.maxCpuCores) {
-    return NextResponse.json(
-      { error: `CPU cores exceed group limit (${group.maxCpuCores})` },
-      { status: 403 }
-    );
-  }
-  if (diskGb > group.maxDiskGb) {
-    return NextResponse.json(
-      { error: `Disk exceeds group limit (${group.maxDiskGb} GB)` },
-      { status: 403 }
-    );
-  }
-  if (group.maxSwapMb > 0 && swapMb > group.maxSwapMb) {
-    return NextResponse.json(
-      { error: `Swap exceeds group limit (${group.maxSwapMb} MB)` },
-      { status: 403 }
-    );
+    if (currentInstances >= group.maxInstances) {
+      return NextResponse.json(
+        { error: `Instance limit reached (${group.maxInstances})` },
+        { status: 403 }
+      );
+    }
+    if (ramMb > group.maxRamMb) {
+      return NextResponse.json(
+        { error: `RAM exceeds group limit (${group.maxRamMb} MB)` },
+        { status: 403 }
+      );
+    }
+    if (cpuCores > group.maxCpuCores) {
+      return NextResponse.json(
+        { error: `CPU cores exceed group limit (${group.maxCpuCores})` },
+        { status: 403 }
+      );
+    }
+    if (diskGb > group.maxDiskGb) {
+      return NextResponse.json(
+        { error: `Disk exceeds group limit (${group.maxDiskGb} GB)` },
+        { status: 403 }
+      );
+    }
+    if (group.maxSwapMb > 0 && swapMb > group.maxSwapMb) {
+      return NextResponse.json(
+        { error: `Swap exceeds group limit (${group.maxSwapMb} MB)` },
+        { status: 403 }
+      );
+    }
   }
 
   // Validate osTemplate exists in DB
