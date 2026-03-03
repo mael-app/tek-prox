@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 type AuditAction =
   | "GROUP_CREATE"
@@ -153,8 +153,26 @@ const ALL_ACTIONS: AuditAction[] = [
   "DOCKER_TOGGLE",
 ];
 
+/** Returns the page numbers to display, inserting `null` for ellipsis gaps. */
+function buildPageItems(current: number, total: number): (number | null)[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+
+  const items: (number | null)[] = [1];
+
+  const leftEdge = Math.max(2, current - 1);
+  const rightEdge = Math.min(total - 1, current + 1);
+
+  if (leftEdge > 2) items.push(null); // left ellipsis
+  for (let p = leftEdge; p <= rightEdge; p++) items.push(p);
+  if (rightEdge < total - 1) items.push(null); // right ellipsis
+
+  items.push(total);
+  return items;
+}
+
 export function AuditLogsClient() {
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(50);
   const [action, setAction] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -171,15 +189,18 @@ export function AuditLogsClient() {
     );
   }
 
-  const params = new URLSearchParams({ page: String(page), limit: "50" });
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
   if (action !== "all") params.set("action", action);
   if (debouncedSearch) params.set("search", debouncedSearch);
 
   const { data, isLoading } = useQuery<AuditLogsResponse>({
-    queryKey: ["audit-logs", page, action, debouncedSearch],
+    queryKey: ["audit-logs", page, limit, action, debouncedSearch],
     queryFn: () =>
       fetch(`/api/admin/audit-logs?${params}`).then((r) => r.json()),
   });
+
+  const firstItem = data ? (page - 1) * limit + 1 : 0;
+  const lastItem = data ? Math.min(page * limit, data.total) : 0;
 
   return (
     <div className="space-y-4">
@@ -217,7 +238,9 @@ export function AuditLogsClient() {
 
         {data && (
           <p className="text-sm text-muted-foreground ml-auto">
-            {data.total} event{data.total !== 1 ? "s" : ""}
+            {data.total > 0
+              ? `${firstItem}–${lastItem} of ${data.total} event${data.total !== 1 ? "s" : ""}`
+              : "0 events"}
           </p>
         )}
       </div>
@@ -281,29 +304,103 @@ export function AuditLogsClient() {
       </div>
 
       {/* Pagination */}
-      {data && data.pages > 1 && (
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            Page {page} / {data.pages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= data.pages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+      {data && data.pages > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Rows per page */}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>Rows per page</span>
+            <Select
+              value={String(limit)}
+              onValueChange={(v) => {
+                setLimit(Number(v));
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="h-8 w-20">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[25, 50, 100].map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Page controls */}
+          {data.pages > 1 && (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                disabled={page <= 1}
+                onClick={() => setPage(1)}
+                aria-label="First page"
+              >
+                <ChevronsLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+                aria-label="Previous page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+
+              {buildPageItems(page, data.pages).map((item, i) =>
+                item === null ? (
+                  <span
+                    key={`ellipsis-${i}`}
+                    className="w-8 text-center text-sm text-muted-foreground select-none"
+                  >
+                    …
+                  </span>
+                ) : (
+                  <Button
+                    key={item}
+                    variant={item === page ? "default" : "outline"}
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setPage(item)}
+                    aria-label={`Page ${item}`}
+                    aria-current={item === page ? "page" : undefined}
+                  >
+                    {item}
+                  </Button>
+                )
+              )}
+
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                disabled={page >= data.pages}
+                onClick={() => setPage((p) => p + 1)}
+                aria-label="Next page"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8"
+                disabled={page >= data.pages}
+                onClick={() => setPage(data.pages)}
+                aria-label="Last page"
+              >
+                <ChevronsRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
+
