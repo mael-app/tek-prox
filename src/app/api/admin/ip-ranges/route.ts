@@ -31,6 +31,7 @@ export async function GET() {
   const ranges = await db.ipRange.findMany({
     include: {
       _count: { select: { addresses: true } },
+      addresses: { take: 1, select: { address: true } },
     },
     orderBy: { createdAt: "desc" },
   });

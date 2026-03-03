@@ -65,6 +65,7 @@ interface IpRange {
   endIp: string | null;
   isIndividual: boolean;
   _count: { addresses: number };
+  addresses: { address: string }[];
 }
 
 export function AdminIpRangesClient() {
@@ -453,7 +454,7 @@ export function AdminIpRangesClient() {
                 <TableCell>{r.label ?? "—"}</TableCell>
                 <TableCell className="font-mono text-sm">
                   {r.isIndividual
-                    ? "single"
+                    ? (r.addresses[0]?.address ?? "—")
                     : `${r.startIp} – ${r.endIp}`}
                 </TableCell>
                 <TableCell className="font-mono text-sm">{r.gateway}</TableCell>
@@ -469,7 +470,7 @@ export function AdminIpRangesClient() {
                           singleForm.reset({
                             label: r.label ?? "",
                             gateway: r.gateway,
-                            individualIp: r.startIp ?? "",
+                            individualIp: r.addresses[0]?.address ?? "",
                           });
                         } else {
                           rangeForm.reset({
