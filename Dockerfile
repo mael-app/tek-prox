@@ -1,16 +1,14 @@
 # syntax=docker/dockerfile:1
 
 # ─── Stage 1: All deps (dev + prod) with native build tools ─────────────────
-FROM node:24-slim AS deps
+FROM node:24-alpine AS deps
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      python3 make g++ \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache python3 make g++
 COPY package*.json ./
 RUN npm ci
 
 # ─── Stage 2: Build ──────────────────────────────────────────────────────────
-FROM node:24-slim AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -21,16 +19,14 @@ RUN npx prisma generate
 RUN npm run build
 
 # ─── Stage 3: Production deps only (prisma CLI + runtime, no TS/tailwind/…) ─
-FROM node:24-slim AS prod-deps
+FROM node:24-alpine AS prod-deps
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      python3 make g++ \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache python3 make g++
 COPY package*.json ./
 RUN npm ci --omit=dev
 
 # ─── Stage 4: Runtime ────────────────────────────────────────────────────────
-FROM node:24-slim AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 
 # Baked-in at build time: docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD)
@@ -40,12 +36,10 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     GIT_COMMIT=$GIT_COMMIT
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-      openssl \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache openssl
 
-RUN groupadd --system --gid 1001 nodejs \
- && useradd  --system --uid 1001 --gid nodejs nextjs
+RUN addgroup --system --gid 1001 nodejs \
+ && adduser  --system --uid 1001 --ingroup nodejs nextjs
 
 # Next.js standalone server + static assets
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
