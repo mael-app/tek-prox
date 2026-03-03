@@ -16,14 +16,14 @@ export default async function AppLayout({
   const commit = process.env.GIT_COMMIT ?? null;
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-screen">
       <Sidebar />
-      <div className="flex flex-col flex-1 overflow-auto">
+      <div className="flex flex-col flex-1">
         <header className="flex items-center justify-end px-6 py-3 border-b shrink-0">
           <ThemeToggle />
         </header>
-        <main className="flex-1 p-6">{children}</main>
-        <footer className="py-6 flex items-center justify-center text-muted-foreground/50">
+        <main className="flex-1 p-6 overflow-auto">{children}</main>
+        <footer className="py-4 flex items-center justify-center text-muted-foreground/50 border-t shrink-0">
           <Link
             href="https://github.com/mael-app/tek-prox"
             target="_blank"

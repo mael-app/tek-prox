@@ -54,3 +54,6 @@ next-env.d.ts
 proxmox-agent/__pycache__/
 proxmox-agent/*.pyc
 proxmox-agent/venv/
+
+/.idea
+/.vscode
