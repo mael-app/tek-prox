@@ -10,16 +10,17 @@ export default async function DashboardPage() {
   if (!session?.user?.id) redirect("/login");
 
   // Admins see all groups; regular users only see their own memberships
+  // Instances are fetched without user filter so quota usage reflects the whole group
   const memberships = session.user.isAdmin
     ? await db.group.findMany({
-        include: { instances: { where: { userId: session.user.id } } },
+        include: { instances: true },
         orderBy: { name: "asc" },
       })
     : await db.groupMember
         .findMany({
           where: { userId: session.user.id },
           include: {
-            group: { include: { instances: { where: { userId: session.user.id } } } },
+            group: { include: { instances: true } },
           },
           orderBy: { group: { name: "asc" } },
         })

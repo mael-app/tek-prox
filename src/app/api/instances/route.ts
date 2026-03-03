@@ -7,6 +7,7 @@ import { allocateIp } from "@/lib/ip";
 import { getNextVmid } from "@/lib/utils/vmid";
 import { isAxiosError } from "axios";
 import { audit } from "@/lib/audit";
+import { revalidatePath } from "next/cache";
 const createSchema = z.object({
   name: z.string().min(1).max(64),
   ramMb: z.number().int().min(128),
@@ -71,9 +72,9 @@ export async function POST(req: NextRequest) {
   // Load the requested group and verify membership (unless admin creating for self)
   const group = await db.group.findUnique({
     where: { id: groupId },
-    include: {
-      instances: { where: { userId: ownerId } },
-    },
+    // Include all group instances (not filtered by user) so quota enforcement
+    // correctly accounts for every member's usage against the group limit.
+    include: { instances: true },
   });
 
   if (!group) {
@@ -212,6 +213,9 @@ export async function POST(req: NextRequest) {
       diskGb,
       ...(ownerId !== session.user.id && { onBehalfOf: ownerId }),
     });
+
+    // Invalidate the dashboard server-component cache so quota usage is fresh.
+    revalidatePath("/dashboard");
 
     return NextResponse.json(result, { status: 201 });
   } catch (err) {

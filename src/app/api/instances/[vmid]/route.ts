@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getProxmoxClient } from "@/lib/proxmox";
 import { releaseIp } from "@/lib/ip";
 import { audit } from "@/lib/audit";
+import { revalidatePath } from "next/cache";
 
 type Params = { params: Promise<{ vmid: string }> };
 
@@ -85,6 +86,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     ownerId: instance.userId,
     deletedByAdmin: instance.userId !== session.user.id,
   });
+
+  // Invalidate the dashboard server-component cache so quota usage is fresh.
+  revalidatePath("/dashboard");
 
   return NextResponse.json({ success: true });
 }
