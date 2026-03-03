@@ -62,6 +62,8 @@ export async function PUT(req: NextRequest, { params }: Params) {
   return NextResponse.json(group);
 }
 
+export const PATCH = PUT;
+
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const session = await adminCheck();
   if (!session) {

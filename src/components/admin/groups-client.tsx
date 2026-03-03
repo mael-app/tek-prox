@@ -33,7 +33,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, UserPlus, Users, Search, UserMinus, Upload } from "lucide-react";
+import { Plus, Trash2, UserPlus, Users, Search, UserMinus, Upload, Pencil } from "lucide-react";
 import { GroupDockerCompatibilityPermission } from "./group-docker-compatibility";
 
 const schema = z.object({
@@ -78,6 +78,7 @@ interface ImportResult {
 export function AdminGroupsClient() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editGroup, setEditGroup] = useState<Group | null>(null);
   const [addMembersGroup, setAddMembersGroup] = useState<Group | null>(null);
   const [manageMembersGroup, setManageMembersGroup] = useState<Group | null>(null);
   const [addSearch, setAddSearch] = useState("");
@@ -126,6 +127,25 @@ export function AdminGroupsClient() {
       toast.success("Group created");
       qc.invalidateQueries({ queryKey: ["admin-groups"] });
       setOpen(false);
+      form.reset();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: FormData }) =>
+      fetch(`/api/admin/groups/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then(async (r) => {
+        if (!r.ok) throw new Error((await r.json()).error);
+        return r.json();
+      }),
+    onSuccess: () => {
+      toast.success("Group updated");
+      qc.invalidateQueries({ queryKey: ["admin-groups"] });
+      setEditGroup(null);
       form.reset();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -331,6 +351,92 @@ export function AdminGroupsClient() {
         </Dialog>
       </div>
 
+      {/* ── Edit group dialog ── */}
+      <Dialog open={!!editGroup} onOpenChange={(o) => !o && setEditGroup(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Group — {editGroup?.name}</DialogTitle>
+          </DialogHeader>
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit((d) =>
+                editGroup && updateMutation.mutate({ id: editGroup.id, data: d })
+              )}
+              className="space-y-3"
+            >
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <div className="grid grid-cols-2 gap-3">
+                {(
+                  [
+                    ["maxRamMb", "Max RAM (MB)", 128],
+                    ["maxCpuCores", "Max CPU", 1],
+                    ["maxDiskGb", "Max Disk (GB)", 1],
+                    ["maxInstances", "Max Instances", 1],
+                    ["maxSwapMb", "Max Swap (MB), 0=none", 0],
+                  ] as const
+                ).map(([name, label, min]) => (
+                  <FormField
+                    key={name}
+                    control={form.control}
+                    name={name}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{label}</FormLabel>
+                        <FormControl>
+                          <Input type="number" min={min} {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="isAdminEdit"
+                  {...form.register("isAdmin")}
+                />
+                <label htmlFor="isAdminEdit" className="text-sm">
+                  Admin group
+                </label>
+              </div>
+              <Button
+                type="submit"
+                disabled={updateMutation.isPending}
+                className="w-full"
+              >
+                Update
+              </Button>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
       <div className="relative mb-3">
         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
         <input
@@ -381,6 +487,27 @@ export function AdminGroupsClient() {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
+                    {/* Edit group */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title="Edit limits"
+                      onClick={() => {
+                        form.reset({
+                          name: g.name,
+                          description: g.description ?? "",
+                          isAdmin: g.isAdmin,
+                          maxRamMb: g.maxRamMb,
+                          maxCpuCores: g.maxCpuCores,
+                          maxDiskGb: g.maxDiskGb,
+                          maxInstances: g.maxInstances,
+                          maxSwapMb: g.maxSwapMb,
+                        });
+                        setEditGroup(g);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                     {/* Import members by email */}
                     <Button
                       variant="ghost"

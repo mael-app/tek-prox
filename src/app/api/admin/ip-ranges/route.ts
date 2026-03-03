@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { expandRange } from "@/lib/ip";
+import { expandRange, hasIpConflict } from "@/lib/ip";
 import { audit } from "@/lib/audit";
 
 const ipv4 = z.string().regex(/^(\d{1,3}\.){3}\d{1,3}$/, "Invalid IPv4 address");
@@ -57,6 +57,15 @@ export async function POST(req: NextRequest) {
     addresses = [individualIp!];
   } else {
     addresses = expandRange(startIp!, endIp!);
+  }
+
+  // Check for conflicts with existing IP ranges
+  const conflictCheck = await hasIpConflict(addresses);
+  if (conflictCheck.conflict) {
+    return NextResponse.json(
+      { error: `IP address ${conflictCheck.conflictingIp} is already in use by another range` },
+      { status: 409 }
+    );
   }
 
   const ipRange = await db.ipRange.create({

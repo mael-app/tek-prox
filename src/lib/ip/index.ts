@@ -64,3 +64,30 @@ export async function releaseIp(instanceId: string) {
     data: { instanceId: null },
   });
 }
+
+/**
+ * Check if IP addresses conflict with existing ranges.
+ * Returns true if there's a conflict, false otherwise.
+ */
+export async function hasIpConflict(
+  addresses: string[],
+  excludeRangeId?: string
+): Promise<{ conflict: boolean; conflictingIp?: string }> {
+  for (const address of addresses) {
+    const existing = await db.ipAddress.findFirst({
+      where: {
+        address,
+        ...(excludeRangeId ? { ipRangeId: { not: excludeRangeId } } : {}),
+      },
+      include: {
+        ipRange: { select: { id: true, label: true, startIp: true, endIp: true } },
+      },
+    });
+
+    if (existing) {
+      return { conflict: true, conflictingIp: address };
+    }
+  }
+
+  return { conflict: false };
+}

@@ -37,7 +37,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 
 const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
 
@@ -70,6 +70,7 @@ interface IpRange {
 export function AdminIpRangesClient() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editRange, setEditRange] = useState<IpRange | null>(null);
 
   const { data: ranges = [], isLoading } = useQuery<IpRange[]>({
     queryKey: ["admin-ip-ranges"],
@@ -100,6 +101,26 @@ export function AdminIpRangesClient() {
       toast.success(`Created ${data._count.addresses} IP address(es)`);
       qc.invalidateQueries({ queryKey: ["admin-ip-ranges"] });
       setOpen(false);
+      rangeForm.reset();
+      singleForm.reset();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Record<string, string | undefined> }) =>
+      fetch(`/api/admin/ip-ranges/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then(async (r) => {
+        if (!r.ok) throw new Error((await r.json()).error);
+        return r.json();
+      }),
+    onSuccess: () => {
+      toast.success("IP range updated");
+      qc.invalidateQueries({ queryKey: ["admin-ip-ranges"] });
+      setEditRange(null);
       rangeForm.reset();
       singleForm.reset();
     },
@@ -280,6 +301,141 @@ export function AdminIpRangesClient() {
         </Dialog>
       </div>
 
+      {/* ── Edit IP range dialog ── */}
+      <Dialog open={!!editRange} onOpenChange={(o) => !o && setEditRange(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit IP Range</DialogTitle>
+          </DialogHeader>
+          {editRange?.isIndividual ? (
+            <Form {...singleForm}>
+              <form
+                onSubmit={singleForm.handleSubmit((d) =>
+                  editRange && updateMutation.mutate({ id: editRange.id, data: d })
+                )}
+                className="space-y-3"
+              >
+                <FormField
+                  control={singleForm.control}
+                  name="label"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Label (optional)</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={singleForm.control}
+                  name="gateway"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gateway</FormLabel>
+                      <FormControl>
+                        <Input placeholder="192.168.1.1" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={singleForm.control}
+                  name="individualIp"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>IP Address</FormLabel>
+                      <FormControl>
+                        <Input placeholder="192.168.1.50" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={updateMutation.isPending}
+                >
+                  Update
+                </Button>
+              </form>
+            </Form>
+          ) : (
+            <Form {...rangeForm}>
+              <form
+                onSubmit={rangeForm.handleSubmit((d) =>
+                  editRange && updateMutation.mutate({ id: editRange.id, data: d })
+                )}
+                className="space-y-3"
+              >
+                <FormField
+                  control={rangeForm.control}
+                  name="label"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Label (optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Production subnet" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={rangeForm.control}
+                  name="gateway"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gateway</FormLabel>
+                      <FormControl>
+                        <Input placeholder="192.168.1.1" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <FormField
+                    control={rangeForm.control}
+                    name="startIp"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Start IP</FormLabel>
+                        <FormControl>
+                          <Input placeholder="192.168.1.100" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={rangeForm.control}
+                    name="endIp"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>End IP</FormLabel>
+                        <FormControl>
+                          <Input placeholder="192.168.1.200" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={updateMutation.isPending}
+                >
+                  Update
+                </Button>
+              </form>
+            </Form>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -303,13 +459,39 @@ export function AdminIpRangesClient() {
                 <TableCell className="font-mono text-sm">{r.gateway}</TableCell>
                 <TableCell>{r._count.addresses}</TableCell>
                 <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => deleteMutation.mutate(r.id)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title="Edit"
+                      onClick={() => {
+                        if (r.isIndividual) {
+                          singleForm.reset({
+                            label: r.label ?? "",
+                            gateway: r.gateway,
+                            individualIp: r.startIp ?? "",
+                          });
+                        } else {
+                          rangeForm.reset({
+                            label: r.label ?? "",
+                            gateway: r.gateway,
+                            startIp: r.startIp ?? "",
+                            endIp: r.endIp ?? "",
+                          });
+                        }
+                        setEditRange(r);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => deleteMutation.mutate(r.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
