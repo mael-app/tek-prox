@@ -77,11 +77,11 @@ export function GroupStatsPagination({ groups }: GroupStatsPaginationProps) {
                     const pct = max > 0 ? Math.round((used / max) * 100) : 0;
                     return (
                       <Card key={label}>
-                        <CardHeader className="flex flex-row items-center justify-between p-2 pb-1 sm:p-3 sm:pb-1">
+                        <CardHeader className="flex flex-row items-center justify-between p-2 pb-0.5 sm:p-2 sm:pb-0.5">
                           <CardTitle className="text-sm font-medium">{label}</CardTitle>
                           <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                         </CardHeader>
-                        <CardContent className="px-2 pt-0 pb-2 sm:px-3 sm:pt-0 sm:pb-2">
+                        <CardContent className="px-2 pt-0 pb-1.5 sm:px-3 sm:pt-0 sm:pb-1.5">
                           <p className="text-sm font-bold">
                             {used}
                             {unit}

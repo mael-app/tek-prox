@@ -6,8 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ProxmoxStatusIndicator } from "@/components/admin/proxmox-status";
-import { UptimeDisplay } from "@/components/layout/uptime-display";
+
 import {
   LayoutDashboard,
   Server,
@@ -70,8 +69,6 @@ export function Sidebar() {
             <p className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Admin
             </p>
-            <ProxmoxStatusIndicator />
-            <UptimeDisplay />
             {adminItems.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}

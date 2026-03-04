@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { Card, CardContent } from "@/components/ui/card";
 import { GroupStatsPagination } from "@/components/dashboard/group-stats-pagination";
+import { ServerStatusPanel } from "@/components/dashboard/server-status-panel";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -28,9 +29,12 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="mb-6 shrink-0">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome back, {session.user.name}</p>
+      <div className="mb-6 shrink-0 flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">Welcome back, {session.user.name}</p>
+        </div>
+        {session.user.isAdmin && <ServerStatusPanel />}
       </div>
 
       {memberships.length === 0 ? (
