@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ProxmoxStatusIndicator } from "@/components/admin/proxmox-status";
+import { UptimeDisplay } from "@/components/layout/uptime-display";
 import {
   LayoutDashboard,
   Server,
@@ -70,6 +71,7 @@ export function Sidebar() {
               Admin
             </p>
             <ProxmoxStatusIndicator />
+            <UptimeDisplay />
             {adminItems.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
