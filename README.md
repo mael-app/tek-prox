@@ -10,6 +10,18 @@
 
 ---
 
+## Table of Contents
+
+- [Screenshots](#screenshots)
+- [Key Features](#key-features)
+- [Architecture](#architecture)
+- [Getting Started](#getting-started-development)
+- [Setting up the Proxmox Agent](#setting-up-the-proxmox-agent)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
 ## Screenshots
 
 ![Dashboard](docs/screenshots/dashboard.png)
@@ -169,6 +181,12 @@ When running inside Docker on the Proxmox host, set `USE_NSENTER=true` (default)
 
 ---
 
+## Contributing
+
+See [CONTRIBUTING.md](.github/CONTRIBUTING.md).
+
+---
+
 ## License
 
-MIT
+[MIT](LICENSE)
