@@ -31,6 +31,7 @@ type AuditAction =
   | "MEMBER_IMPORT"
   | "INSTANCE_CREATE"
   | "INSTANCE_DELETE"
+  | "INSTANCE_UPDATE"
   | "DOCKER_TOGGLE"
   | "SETTINGS_UPDATE";
 
@@ -62,6 +63,7 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   MEMBER_IMPORT: "Members imported",
   INSTANCE_CREATE: "Instance created",
   INSTANCE_DELETE: "Instance deleted",
+  INSTANCE_UPDATE: "Instance updated",
   DOCKER_TOGGLE: "Docker toggled",
   SETTINGS_UPDATE: "Settings updated",
 };
@@ -79,9 +81,12 @@ const ACTION_VARIANTS: Record<
   MEMBER_IMPORT: "secondary",
   INSTANCE_CREATE: "default",
   INSTANCE_DELETE: "destructive",
+  INSTANCE_UPDATE: "secondary",
   DOCKER_TOGGLE: "outline",
   SETTINGS_UPDATE: "secondary",
 };
+
+
 
 function actionLabel(action: string): string {
   return ACTION_LABELS[action as AuditAction] ?? action;
@@ -125,6 +130,16 @@ function formatMeta(action: string, metaRaw: string | null): string {
       return `vmid ${meta.vmid} "${meta.name}" — ${meta.cpuCores} vCPU, ${meta.ramMb} MB RAM, ${meta.diskGb} GB (${meta.groupName})`;
     case "INSTANCE_DELETE":
       return `vmid ${meta.vmid} "${meta.name}"${meta.deletedByAdmin ? " (by admin)" : ""}`;
+    case "INSTANCE_UPDATE": {
+      const changes = meta.changes as Record<string, number | undefined>;
+      const parts: string[] = [];
+      if (changes.ramMb !== undefined) parts.push(`RAM → ${changes.ramMb} MB`);
+      if (changes.cpuCores !== undefined) parts.push(`CPU → ${changes.cpuCores}`);
+      if (changes.diskGb !== undefined) parts.push(`disk → ${changes.diskGb} GB`);
+      if (changes.swapMb !== undefined) parts.push(`swap → ${changes.swapMb} MB`);
+      const suffix = meta.byAdmin ? " (by admin)" : "";
+      return `vmid ${meta.vmid}${parts.length ? ": " + parts.join(", ") : ""}${suffix}`;
+    }
     case "DOCKER_TOGGLE":
       return `vmid ${meta.vmid} "${meta.name}" → ${meta.enabled ? "enabled" : "disabled"}${meta.toggledByAdmin ? " (by admin)" : ""}`;
     case "SETTINGS_UPDATE": {
@@ -161,6 +176,7 @@ const ALL_ACTIONS: AuditAction[] = [
   "MEMBER_IMPORT",
   "INSTANCE_CREATE",
   "INSTANCE_DELETE",
+  "INSTANCE_UPDATE",
   "DOCKER_TOGGLE",
   "SETTINGS_UPDATE",
 ];
