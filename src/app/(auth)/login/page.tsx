@@ -36,7 +36,7 @@ export default async function LoginPage({
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold">tek-prox</h1>
           <p className="text-muted-foreground mt-2">
-            Proxmox LXC Management Platform
+            Epitech Proxmox Manager
           </p>
         </div>
 

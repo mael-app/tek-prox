@@ -43,7 +43,7 @@ export function Sidebar() {
     <aside className="hidden md:flex flex-col w-64 min-h-screen border-r bg-sidebar px-3 py-4">
       <div className="mb-6 px-2">
         <h1 className="text-xl font-bold tracking-tight">tek-prox</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">Proxmox LXC Manager</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Epitech Proxmox Manager</p>
       </div>
 
       <nav className="flex flex-col gap-1 flex-1">

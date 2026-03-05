@@ -47,7 +47,7 @@ export function MobileNav() {
         <SheetContent side="left" className="w-64 flex flex-col px-3 py-4">
           <SheetHeader className="mb-6 px-2 text-left">
             <SheetTitle className="text-xl font-bold tracking-tight">tek-prox</SheetTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">Proxmox LXC Manager</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Epitech Proxmox Manager</p>
           </SheetHeader>
 
           <nav className="flex flex-col gap-1 flex-1">

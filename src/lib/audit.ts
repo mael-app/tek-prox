@@ -11,6 +11,7 @@ export type AuditAction =
   | "MEMBER_IMPORT"
   | "INSTANCE_CREATE"
   | "INSTANCE_DELETE"
+  | "INSTANCE_UPDATE"
   | "DOCKER_TOGGLE"
   | "SETTINGS_UPDATE";
 

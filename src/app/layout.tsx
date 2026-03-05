@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "tek-prox",
-  description: "Proxmox LXC Management Platform",
+  description: "Epitech Proxmox Manager",
 };
 
 export default function RootLayout({

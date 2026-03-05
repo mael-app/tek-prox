@@ -135,15 +135,15 @@ export function CreateInstanceForm({ groups, adminUsers }: Props) {
   const quotaWarnings: string[] = [];
   if (isAdmin && selectedGroup) {
     if ((selectedGroup.instanceCount ?? 0) >= selectedGroup.maxInstances)
-      quotaWarnings.push(`Instances: groupe déjà à ${selectedGroup.instanceCount ?? 0}/${selectedGroup.maxInstances}`);
+      quotaWarnings.push(`Instances: group already at ${selectedGroup.instanceCount ?? 0}/${selectedGroup.maxInstances}`);
     if (watchedRam > maxRamMb)
-      quotaWarnings.push(`RAM: ${watchedRam} MB dépasse la limite de ${maxRamMb} MB`);
+      quotaWarnings.push(`RAM: ${watchedRam} MB exceeds the group limit of ${maxRamMb} MB`);
     if (watchedCpu > maxCpuCores)
-      quotaWarnings.push(`CPU: ${watchedCpu} cœurs dépasse la limite de ${maxCpuCores}`);
+      quotaWarnings.push(`CPU: ${watchedCpu} cores exceeds the group limit of ${maxCpuCores}`);
     if (watchedDisk > maxDiskGb)
-      quotaWarnings.push(`Disque: ${watchedDisk} GB dépasse la limite de ${maxDiskGb} GB`);
+      quotaWarnings.push(`Disk: ${watchedDisk} GB exceeds the group limit of ${maxDiskGb} GB`);
     if (maxSwapMb > 0 && watchedSwap > maxSwapMb)
-      quotaWarnings.push(`Swap: ${watchedSwap} MB dépasse la limite de ${maxSwapMb} MB`);
+      quotaWarnings.push(`Swap: ${watchedSwap} MB exceeds the group limit of ${maxSwapMb} MB`);
   }
 
   function handleUserChange(userId: string) {
@@ -308,7 +308,7 @@ export function CreateInstanceForm({ groups, adminUsers }: Props) {
           <div className="rounded-md border border-yellow-400 bg-yellow-50 dark:bg-yellow-950/20 px-3 py-2 text-sm text-yellow-800 dark:text-yellow-300">
             <p className="flex items-center gap-1.5 font-semibold mb-1">
               <TriangleAlert className="h-4 w-4 shrink-0" />
-              Dépassement de quota (admin)
+              Quota override (admin)
             </p>
             <ul className="list-disc pl-5 space-y-0.5">
               {quotaWarnings.map((w) => <li key={w}>{w}</li>)}

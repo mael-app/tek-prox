@@ -137,6 +137,17 @@ class ProxmoxClient {
     );
     return res.data.data;
   }
+
+  async updateLxcConfig(vmid: number, config: { memory?: number; cores?: number; swap?: number }): Promise<void> {
+    await this.client.put(`/nodes/${this.node}/lxc/${vmid}/config`, config);
+  }
+
+  async resizeLxcDisk(vmid: number, diskGb: number): Promise<void> {
+    await this.client.put(`/nodes/${this.node}/lxc/${vmid}/resize`, {
+      disk: "rootfs",
+      size: `${diskGb}G`,
+    });
+  }
 }
 
 let instance: ProxmoxClient | null = null;
