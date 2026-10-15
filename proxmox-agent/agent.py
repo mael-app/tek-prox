@@ -7,6 +7,7 @@ Performs privileged LXC operations on behalf of the Next.js app.
 
 import hmac
 import os
+import re
 import secrets
 import shlex
 import subprocess
@@ -49,7 +50,12 @@ USE_NSENTER = os.environ.get("USE_NSENTER", "true").lower() != "false"
 
 def pct_cmd(*args: str) -> list[str]:
     """Build a pct command, optionally wrapped with nsenter."""
-    cmd = ["pct"] + list(args)
+    return host_cmd("pct", *args)
+
+
+def host_cmd(*args: str) -> list[str]:
+    """Build a command run with the host's binaries, optionally wrapped with nsenter."""
+    cmd = list(args)
     if USE_NSENTER:
         # Enter host mount + network namespaces so pct can reach Proxmox-specific
         # mounts (/etc/pve, lxcfs, …). Skip -p/-u/-i: pid: "host" already shares
@@ -285,6 +291,46 @@ def inject_ssh_key():
     # All retries exhausted
     app.logger.error(f"inject-ssh-key: vmid={vmid} not ready after {MAX_RETRIES} attempts")
     return jsonify({"error": f"Container not ready after {MAX_RETRIES} attempts: {last_error}"}), 503
+
+
+@agent.route("/agent/lxc-ip", methods=["POST"])
+@require_auth
+def lxc_ip():
+    """
+    Return the current IPv4 address of eth0 inside a running container.
+    Runs the host's `ip` binary inside the container's network namespace, so
+    it works on any PVE version and doesn't depend on tools in the container.
+    Responds {"ip": null} when the container is stopped or has no lease.
+    """
+    data = request.get_json(force=True)
+    vmid = data.get("vmid")
+    if not vmid or not str(vmid).isdigit():
+        return jsonify({"error": "Invalid vmid"}), 400
+
+    vmid = int(vmid)
+    try:
+        pid = subprocess.run(
+            host_cmd("lxc-info", "-n", str(vmid), "-pH"),
+            capture_output=True,
+            text=True,
+            timeout=5,
+        ).stdout.strip()
+        if not pid.isdigit():
+            return jsonify({"ip": None})
+
+        out = subprocess.run(
+            host_cmd("nsenter", "-t", pid, "-n", "--", "ip", "-4", "-o", "addr", "show", "dev", "eth0"),
+            capture_output=True,
+            text=True,
+            timeout=5,
+        ).stdout
+        match = re.search(r"inet (\d+\.\d+\.\d+\.\d+)/", out)
+        return jsonify({"ip": match.group(1) if match else None})
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Timed out reading container IP"}), 504
+    except Exception as e:
+        app.logger.error(f"lxc-ip error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 app.register_blueprint(agent)

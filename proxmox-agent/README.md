@@ -91,6 +91,18 @@ Injects an SSH public key into `/root/.ssh/authorized_keys` inside the container
 
 **Response:** `{"success": true}`
 
+---
+
+### `POST /lxc-ip`
+Returns the current IPv4 address of `eth0` in a running container (used for DHCP instances). Reads it from the host via the container's network namespace, so it works on PVE 7.x and doesn't need `ip` inside the container.
+
+**Request body:**
+```json
+{"vmid": 200}
+```
+
+**Response:** `{"ip": "192.168.1.42"}` — `ip` is `null` when the container is stopped or has no lease yet.
+
 ## Authentication
 
 All requests require the `X-Agent-Key` header matching `AGENT_API_KEY`. Comparison uses `secrets.compare_digest` to prevent timing attacks.

@@ -10,7 +10,7 @@ export default function AdminSettingsPage() {
         <CardHeader>
           <CardTitle>Proxmox Defaults</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Default storage pool and network bridge used when creating new instances.
+            Default storage pool, network bridge and IP assignment used when creating new instances.
           </p>
         </CardHeader>
         <CardContent>

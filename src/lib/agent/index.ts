@@ -18,6 +18,16 @@ export async function injectSshKey(vmid: number, sshKey: string): Promise<void> 
   await agentClient.post("inject-ssh-key", { vmid, ssh_key: sshKey }, { timeout: 90_000 });
 }
 
+/** Current IPv4 of eth0 in a running container, or null (stopped / no lease). */
+export async function getLxcIp(vmid: number, timeoutMs = 4000): Promise<string | null> {
+  const res = await agentClient.post<{ ip: string | null }>(
+    "lxc-ip",
+    { vmid },
+    { timeout: timeoutMs }
+  );
+  return res.data?.ip ?? null;
+}
+
 export async function checkAgentHealth(
   timeoutMs = 5000
 ): Promise<{ ok: boolean; commit?: string }> {

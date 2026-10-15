@@ -45,11 +45,6 @@ import {
   Trash2,
 } from "lucide-react";
 
-interface IpAddress {
-  address: string;
-  gateway: string;
-}
-
 interface Instance {
   id: string;
   vmid: number;
@@ -59,7 +54,9 @@ interface Instance {
   cpuCores: number;
   diskGb: number;
   osTemplate: string;
-  ip: IpAddress | null;
+  networkMode: "static" | "dhcp";
+  ipAddress: string | null;
+  ipStale: boolean;
   group: { id: string; name: string };
   user: { id: string; name: string | null; email: string | null };
   createdAt: string;
@@ -100,7 +97,13 @@ export function InstanceList({ isAdmin }: { isAdmin?: boolean }) {
   const { data: instances, isLoading } = useQuery<Instance[]>({
     queryKey: ["instances"],
     queryFn: () => fetch("/api/instances").then((r) => r.json()),
-    refetchInterval: 15_000,
+    // Poll faster while a DHCP instance is still waiting for its lease
+    refetchInterval: (query) =>
+      query.state.data?.some(
+        (i) => i.networkMode === "dhcp" && i.status === "running" && (!i.ipAddress || i.ipStale)
+      )
+        ? 5_000
+        : 15_000,
   });
 
   async function handleAction(
@@ -188,7 +191,7 @@ export function InstanceList({ isAdmin }: { isAdmin?: boolean }) {
     return (
       i.name.toLowerCase().includes(q) ||
       String(i.vmid).includes(q) ||
-      (i.ip?.address ?? "").includes(q)
+      (i.ipAddress ?? "").includes(q)
     );
   });
 
@@ -335,22 +338,33 @@ export function InstanceList({ isAdmin }: { isAdmin?: boolean }) {
                   <StatusBadge status={instance.status} />
                 </TableCell>
                 <TableCell className="font-mono text-sm">
-                  {instance.ip?.address ? (
+                  {instance.ipAddress ? (
                     <span
-                      className="inline-flex items-center gap-1.5 cursor-pointer group"
+                      className={`inline-flex items-center gap-1.5 cursor-pointer group ${instance.ipStale ? "text-muted-foreground" : ""}`}
+                      title={instance.ipStale ? "Last known address (instance not reachable)" : undefined}
                       onClick={(e) =>
-                        handleCopyIp(e, instance.vmid, instance.ip!.address)
+                        handleCopyIp(e, instance.vmid, instance.ipAddress!)
                       }
                     >
-                      {instance.ip.address}
+                      {instance.ipAddress}
                       {copiedVmid === instance.vmid ? (
                         <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />
                       ) : (
                         <Copy className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                       )}
                     </span>
+                  ) : instance.networkMode === "dhcp" && instance.status === "running" ? (
+                    <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Waiting for DHCP…
+                    </span>
                   ) : (
                     <span>—</span>
+                  )}
+                  {instance.networkMode === "dhcp" && (
+                    <Badge variant="outline" className="ml-2 text-[10px] px-1.5 py-0 font-sans">
+                      DHCP
+                    </Badge>
                   )}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">

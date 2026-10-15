@@ -8,8 +8,29 @@ import { InstanceActions } from "@/components/instances/instance-actions";
 import { InstanceDockerCompatibility } from "@/components/instances/instance-docker-compatibility";
 import { InstanceResourceEditor } from "@/components/instances/instance-resource-editor";
 import { CopyableValue } from "@/components/ui/copy-button";
+import { InstanceIpDetails } from "@/components/instances/instance-ip";
+import { resolveInstanceIp } from "@/lib/ip/live";
 
 type Params = { params: Promise<{ vmid: string }> };
+
+type Detail = { label: string; value: string | number; copyValue?: string | null };
+
+function DetailRow({ label, value, copyValue }: Detail) {
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground uppercase tracking-wider">
+        {label}
+      </dt>
+      <dd className="flex items-center font-medium font-mono text-sm mt-0.5">
+        {copyValue ? (
+          <CopyableValue value={copyValue} label={`Copy ${label}`} />
+        ) : (
+          String(value)
+        )}
+      </dd>
+    </div>
+  );
+}
 
 export default async function InstanceDetailPage({ params }: Params) {
   const session = await getServerSession(authOptions);
@@ -30,13 +51,12 @@ export default async function InstanceDetailPage({ params }: Params) {
   }
 
   const userHasSshKey = !!instance.user.sshPublicKey;
+  const resolvedIp = await resolveInstanceIp(instance);
 
-  const details = [
+  const details: Detail[] = [
     { label: "VMID", value: instance.vmid },
     { label: "Hostname", value: instance.name },
     { label: "Status", value: instance.status },
-    { label: "IP Address", value: instance.ip?.address ?? "—", copyValue: instance.ip?.address ?? null },
-    { label: "Gateway", value: instance.ip?.gateway ?? "—", copyValue: instance.ip?.gateway ?? null },
     { label: "OS Template", value: instance.osTemplate },
     { label: "RAM", value: `${instance.ramMb} MB` },
     { label: "CPU Cores", value: instance.cpuCores },
@@ -130,19 +150,21 @@ export default async function InstanceDetailPage({ params }: Params) {
             </CardHeader>
             <CardContent>
               <dl className="flex flex-col gap-3">
-                {details.map(({ label, value, copyValue }) => (
-                  <div key={label}>
-                    <dt className="text-xs text-muted-foreground uppercase tracking-wider">
-                      {label}
-                    </dt>
-                    <dd className="flex items-center font-medium font-mono text-sm mt-0.5">
-                      {copyValue ? (
-                        <CopyableValue value={copyValue} label={`Copy ${label}`} />
-                      ) : (
-                        String(value)
-                      )}
-                    </dd>
-                  </div>
+                {details.slice(0, 3).map((d) => (
+                  <DetailRow key={d.label} {...d} />
+                ))}
+                <InstanceIpDetails
+                  vmid={vmid}
+                  initial={{
+                    networkMode: instance.networkMode === "dhcp" ? "dhcp" : "static",
+                    status: instance.status,
+                    ipAddress: resolvedIp.ipAddress,
+                    ipStale: resolvedIp.ipStale,
+                    ip: instance.ip,
+                  }}
+                />
+                {details.slice(3).map((d) => (
+                  <DetailRow key={d.label} {...d} />
                 ))}
               </dl>
             </CardContent>

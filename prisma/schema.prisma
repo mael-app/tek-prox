@@ -101,6 +101,11 @@ model Instance {
   node                       String
   status                     String     @default("creating")
   dockerCompatibilityEnabled Boolean    @default(false)
+  // "static" (IP from a range) or "dhcp" — fixed at creation time
+  networkMode                String     @default("static")
+  // Last IP reported by Proxmox for DHCP instances (shown while stopped)
+  lastKnownIp                String?
+  lastIpSeenAt               DateTime?
   user                       User       @relation(fields: [userId], references: [id])
   group                      Group      @relation(fields: [groupId], references: [id])
   ip                         IpAddress?
@@ -109,10 +114,12 @@ model Instance {
 }
 
 model Settings {
-  id        String   @id @default("global")
-  storage   String   @default("local-lvm")
-  bridge    String   @default("vmbr0")
-  updatedAt DateTime @updatedAt
+  id          String   @id @default("global")
+  storage     String   @default("local-lvm")
+  bridge      String   @default("vmbr0")
+  // "static" (allocate from IP ranges) or "dhcp"
+  networkMode String   @default("static")
+  updatedAt   DateTime @updatedAt
 }
 
 model OsTemplate {

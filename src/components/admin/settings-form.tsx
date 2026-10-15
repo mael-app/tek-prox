@@ -5,22 +5,31 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
+  FormDescription,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Loader2, Pencil, X, TriangleAlert } from "lucide-react";
 
 const schema = z.object({
   storage: z.string().min(1),
   bridge: z.string().min(1),
+  networkMode: z.enum(["static", "dhcp"]),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -29,6 +38,7 @@ interface Settings {
   id: string;
   storage: string;
   bridge: string;
+  networkMode: "static" | "dhcp";
   updatedAt: string;
 }
 
@@ -43,14 +53,20 @@ export function SettingsForm() {
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { storage: "local-lvm", bridge: "vmbr0" },
+    defaultValues: { storage: "local-lvm", bridge: "vmbr0", networkMode: "static" },
   });
 
-  useEffect(() => {
+  const resetToSettings = useCallback(() => {
     if (settings) {
-      form.reset({ storage: settings.storage, bridge: settings.bridge });
+      form.reset({
+        storage: settings.storage,
+        bridge: settings.bridge,
+        networkMode: settings.networkMode,
+      });
     }
   }, [settings, form]);
+
+  useEffect(resetToSettings, [resetToSettings]);
 
   const saveMutation = useMutation({
     mutationFn: (data: FormData) =>
@@ -71,7 +87,7 @@ export function SettingsForm() {
   });
 
   function handleCancel() {
-    if (settings) form.reset({ storage: settings.storage, bridge: settings.bridge });
+    resetToSettings();
     setEditing(false);
   }
 
@@ -104,6 +120,12 @@ export function SettingsForm() {
                 <dt className="text-xs uppercase tracking-wider text-muted-foreground">Network Bridge</dt>
                 <dd className="font-mono font-medium mt-0.5">{settings.bridge}</dd>
               </div>
+              <div>
+                <dt className="text-xs uppercase tracking-wider text-muted-foreground">IP Assignment</dt>
+                <dd className="font-mono font-medium mt-0.5">
+                  {settings.networkMode === "dhcp" ? "DHCP" : "Static (IP ranges)"}
+                </dd>
+              </div>
             </dl>
           </div>
         </div>
@@ -118,7 +140,7 @@ export function SettingsForm() {
             <div className="text-sm space-y-1">
               <p className="font-semibold">Dangerous operation — proceed with caution</p>
               <p className="text-destructive/80">
-                Changing the storage pool or network bridge affects all future instance
+                Changing the storage pool, network bridge or IP assignment affects all future instance
                 deployments. Incorrect values will cause instance creation to fail on
                 Proxmox. Make sure the target storage and bridge exist on your node
                 before saving.
@@ -153,6 +175,31 @@ export function SettingsForm() {
                     <FormControl>
                       <Input placeholder="vmbr0" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="networkMode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>IP Assignment</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="static">Static (IP ranges)</SelectItem>
+                        <SelectItem value="dhcp">DHCP</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Applies to new instances only. Existing instances keep their
+                      current network configuration.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

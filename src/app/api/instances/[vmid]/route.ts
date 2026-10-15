@@ -3,6 +3,7 @@ import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { getProxmoxClient } from "@/lib/proxmox";
 import { releaseIp } from "@/lib/ip";
+import { invalidateLiveIp, withResolvedIp } from "@/lib/ip/live";
 import { audit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -27,13 +28,15 @@ export async function GET(_req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const resolved = await withResolvedIp(instance);
+
   // Fetch live status from Proxmox
   try {
     const proxmox = getProxmoxClient();
     const liveStatus = await proxmox.getLxcStatus(vmid);
-    return NextResponse.json({ ...instance, liveStatus });
+    return NextResponse.json({ ...resolved, liveStatus });
   } catch {
-    return NextResponse.json(instance);
+    return NextResponse.json(resolved);
   }
 }
 
@@ -172,6 +175,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   // Release IP
   await releaseIp(instance.id);
+  invalidateLiveIp(vmid);
 
   // Delete from DB
   await db.instance.delete({ where: { id: instance.id } });

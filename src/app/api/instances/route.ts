@@ -3,7 +3,8 @@ import { z } from "zod";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { getProxmoxClient } from "@/lib/proxmox";
-import { allocateIp } from "@/lib/ip";
+import { allocateIp, releaseIp } from "@/lib/ip";
+import { withResolvedIp } from "@/lib/ip/live";
 import { getNextVmid } from "@/lib/utils/vmid";
 import { isAxiosError } from "axios";
 import { audit } from "@/lib/audit";
@@ -35,7 +36,7 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json(instances);
+  return NextResponse.json(await Promise.all(instances.map(withResolvedIp)));
 }
 
 export async function POST(req: NextRequest) {
@@ -139,6 +140,8 @@ export async function POST(req: NextRequest) {
     update: {},
   });
 
+  const isDhcp = settings.networkMode === "dhcp";
+
   // Pick VMID
   const vmid = await getNextVmid();
   const node = process.env.PROXMOX_NODE ?? "pve";
@@ -157,12 +160,13 @@ export async function POST(req: NextRequest) {
       osTemplate,
       node,
       status: "creating",
+      networkMode: isDhcp ? "dhcp" : "static",
     },
   });
 
-  // Atomically claim a free IP
-  const ipRecord = await allocateIp(instance.id);
-  if (!ipRecord) {
+  // Static mode: atomically claim a free IP from the ranges
+  const ipRecord = isDhcp ? null : await allocateIp(instance.id);
+  if (!isDhcp && !ipRecord) {
     await db.instance.delete({ where: { id: instance.id } });
     return NextResponse.json(
       { error: "No available IP addresses" },
@@ -173,7 +177,9 @@ export async function POST(req: NextRequest) {
   try {
     const proxmox = getProxmoxClient();
 
-    const net0 = `name=eth0,bridge=${settings.bridge},ip=${ipRecord.address}/24,gw=${ipRecord.gateway}`;
+    const net0 = ipRecord
+      ? `name=eth0,bridge=${settings.bridge},ip=${ipRecord.address}/24,gw=${ipRecord.gateway}`
+      : `name=eth0,bridge=${settings.bridge},ip=dhcp`;
 
     const upid = await proxmox.createLxc({
       vmid,
@@ -210,19 +216,17 @@ export async function POST(req: NextRequest) {
       ramMb,
       cpuCores,
       diskGb,
+      networkMode: isDhcp ? "dhcp" : "static",
       ...(ownerId !== session.user.id && { onBehalfOf: ownerId }),
     });
 
     // Invalidate the dashboard server-component cache so quota usage is fresh.
     revalidatePath("/dashboard");
 
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json(result && (await withResolvedIp(result)), { status: 201 });
   } catch (err) {
     // Rollback: release IP and delete instance
-    await db.ipAddress.updateMany({
-      where: { id: ipRecord.id },
-      data: { instanceId: null },
-    });
+    await releaseIp(instance.id);
     await db.instance.delete({ where: { id: instance.id } });
     // Log the full error server-side for debugging
     console.error("Instance creation failed:", err);

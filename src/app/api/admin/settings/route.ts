@@ -7,6 +7,7 @@ import { audit } from "@/lib/audit";
 const updateSchema = z.object({
   storage: z.string().min(1),
   bridge: z.string().min(1),
+  networkMode: z.enum(["static", "dhcp"]),
 });
 
 export async function GET() {
@@ -47,6 +48,7 @@ export async function PUT(req: NextRequest) {
   audit(session.user, "SETTINGS_UPDATE", "global", {
     storage: { from: previous?.storage ?? null, to: settings.storage },
     bridge: { from: previous?.bridge ?? null, to: settings.bridge },
+    networkMode: { from: previous?.networkMode ?? null, to: settings.networkMode },
   });
 
   return NextResponse.json(settings);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
 import { getProxmoxClient } from "@/lib/proxmox";
+import { invalidateLiveIp } from "@/lib/ip/live";
 
 type Params = { params: Promise<{ vmid: string }> };
 
@@ -22,6 +23,7 @@ export async function POST(_req: NextRequest, { params }: Params) {
   const proxmox = getProxmoxClient();
   const upid = await proxmox.stopLxc(vmid);
   await proxmox.waitForTask(upid);
+  invalidateLiveIp(vmid);
 
   await db.instance.update({
     where: { id: instance.id },

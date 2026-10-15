@@ -68,7 +68,7 @@ interface IpRange {
   addresses: { address: string }[];
 }
 
-export function AdminIpRangesClient() {
+export function AdminIpRangesClient({ isDhcp = false }: { isDhcp?: boolean }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editRange, setEditRange] = useState<IpRange | null>(null);
@@ -302,6 +302,13 @@ export function AdminIpRangesClient() {
           </DialogContent>
         </Dialog>
       </div>
+      {isDhcp && (
+        <div className="mb-4 rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+          IP assignment is set to DHCP: new instances get their address from
+          the network and these ranges are not used. Instances created in
+          static mode keep their allocated IP.
+        </div>
+      )}
 
       {/* ── Edit IP range dialog ── */}
       <Dialog open={!!editRange} onOpenChange={(o) => !o && setEditRange(null)}>
