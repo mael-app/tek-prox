@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "npm run build:scripts && next build",
-    "build:scripts": "tsc scripts/setup-admin.ts --outDir scripts --module commonjs --esModuleInterop --skipLibCheck --resolveJsonModule",
+    "build:scripts": "tsc --ignoreConfig scripts/setup-admin.ts --outDir scripts --module commonjs --esModuleInterop --skipLibCheck --resolveJsonModule",
     "start": "next start",
     "setup:admin": "node scripts/setup-admin.js"
   },
